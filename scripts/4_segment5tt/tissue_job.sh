@@ -17,18 +17,24 @@ module load FSL
 module load FreeSurfer
 module load python/3.8
 
-patient_folder=$1
-scanner_folder=$2
-data_folder=$3
-cd "$data_folder"
-cd $scanner_folder
-cd $patient_folder
-echo "Job Doing $patient_folder"
+###############################################################################
+# PATH MACRO: edit ../paths_config.sh once, or override variables here.
+###############################################################################
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../paths_config.sh"
+
+subject_dir=$1
+subject_id=$(basename "$subject_dir")
+anat_dir="$subject_dir/anat"
+dwi_dir="$subject_dir/dwi"
+t1_file=$(find "$anat_dir" -maxdepth 1 -type f -name "${subject_id}*_T1w.nii.gz" -print -quit)
+cd "$dwi_dir" || exit 1
+echo "Job Doing $subject_id"
 
 #mrconvert T1_CAT12.nii T1_CAT12.mif -force
 if [ ! -f "5tt_coreg.mif" ]; then
     echo "  - Generating 5tt coregistered to DWI..."
-    mrconvert T1_raw.nii.gz T1_raw.mif -force
+    mrconvert "$t1_file" T1_raw.mif -force
     5ttgen fsl T1_raw.mif 5tt_nocoreg.mif -force 
     dwiextract Diff_preproc_unbiased.mif - -bzero | mrmath - mean mean_b0.mif -axis 3 -force
     mrconvert mean_b0.mif mean_b0.nii.gz -force

@@ -1,34 +1,26 @@
 #!/bin/bash
-# filepath: /network/iss/cohen/data/Ivan/Tractography/scripts/iterators/apply_hd_bet.sh
 
-# List of subject folders to process (modify and add trailing "/" if needed)
+###############################################################################
+# PATH MACRO: edit ../paths_config.sh once, or override variables here.
+###############################################################################
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../paths_config.sh"
+SUBJECTS_INPUT_DIR="${SUBJECTS_INPUT_DIR:-${BIDS_ROOT}}"
 
-
-# Loop over each subject folder
-#cd workbench_GE
-for patient_folder in */; do
+# Loop over BIDS subject folders.
+for patient_folder in "$SUBJECTS_INPUT_DIR"/sub-*/; do
+    [ -d "$patient_folder" ] || continue
     echo "Processing ${patient_folder} ..."
-    if [ -d "${patient_folder}" ]; then
-    cd "${patient_folder}"
-        # Change into the patient folder's INPUTS directory
-        
-            if [ -f "T1_raw.nii.gz" ]; then
-                echo "Applying HD-BET on T1_raw.nii in working directory"
-                # Unzip the T1_raw.nii.gz file
-                gunzip -k T1_raw.nii.gz
-                hd-bet -i T1_raw.nii -o preproc_mask.nii.gz -device cpu --disable_tta
-                # Alternaively you can use the classic BET with 
-                #bet "$input_b0" preproc.nii.gz -n -m -f 0.4
-                
+    subject_id=$(basename "$patient_folder")
+    anat_dir="${patient_folder%/}/anat"
+    dwi_dir="${patient_folder%/}/dwi"
+    t1_file=$(find "$anat_dir" -maxdepth 1 -type f -name "${subject_id}*_T1w.nii.gz" -print -quit 2>/dev/null)
 
-            else
-                echo "T1_CAT12.nii not found in working directory"
-            fi
-            # Return to parent directory
-        cd ../
-        
+    if [ -n "$t1_file" ]; then
+        mkdir -p "$dwi_dir"
+        echo "Applying HD-BET to $(basename "$t1_file")"
+        hd-bet -i "$t1_file" -o "$dwi_dir/preproc_mask.nii.gz" -device cpu --disable_tta
     else
-        echo "${patient_folder} is not a valid directory."
+        echo "No ${subject_id}*_T1w.nii.gz found in $anat_dir"
     fi
 done
-

@@ -6,30 +6,27 @@
 #SBATCH --mail-type=ALL
 
 
-# Atlas require labels like
-#export ATLAS_DIR="/network/iss/cohen/data/Ivan/Tractography/atlas_data/$schaefer100-yeo17"
-#export ATLAS_LABEL_NAME="schaefer100-yeo17" for Schafer I have ending _scwhite
-#export TABLE_LABEL_NAME="Schaefer2018_100Parcels_7Networks_order"
+# Atlas configurations require an annotation label and lookup-table label.
 
 ml FreeSurfer/6.0.0
 ml FSL
 ml MRtrix
 
-#export ATLAS_LABEL_NAME="aal"
-#export TABLE_DIR="/network/iss/cohen/data/Ivan/Tractography"
-export ATLAS_LABEL_NAME="schaefer100-yeo7"
-export ATLAS_DIR="/network/iss/cohen/data/Ivan/Tractography/atlas_data/${ATLAS_LABEL_NAME}"
-export TABLE_LABEL_NAME="LUT_${ATLAS_LABEL_NAME}"
+###############################################################################
+# PATH MACRO: edit ../paths_config.sh once, or override variables here.
+###############################################################################
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../paths_config.sh"
+export ATLAS_LABEL_NAME="${ATLAS_LABEL_NAME:-schaefer100-yeo7}"
+export ATLAS_DIR="${ATLAS_DIR:-${ATLAS_ROOT}/${ATLAS_LABEL_NAME}}"
+export TABLE_LABEL_NAME="${TABLE_LABEL_NAME:-LUT_${ATLAS_LABEL_NAME}}"
 source $FREESURFER_HOME/SetUpFreeSurfer.sh
-export SUBJECTS_DIR="/network/iss/cohen/data/Ivan/Tractography/freesurfer"
+export SUBJECTS_DIR="${SUBJECTS_DIR:-${FREESURFER_SUBJECTS_DIR}}"
 
 
-subject_folder=$1
-scanner_folder=$2
-data_folder=$3
-cd "$data_folder"
-cd $scanner_folder
-cd $subject_folder
+subject_dir=$1
+subject_folder=$(basename "$subject_dir")
+cd "$subject_dir/dwi" || exit 1
 echo "Job Doing $subject_folder"
 
 
@@ -55,4 +52,3 @@ else
 fi
 #bbregister --s $subject_folder --mov meanb0_post_preproc.nii --reg dwi2orig.lta --dti --init-fsl
 #lta_convert --inlta dwi2orig.lta --outitk dwi2orig_itk.txt
-

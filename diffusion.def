@@ -1,0 +1,192 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%labels
+    Author Ivan Mindlin
+    Description "Diffusion MRI pipeline: MRtrix3Tissue, FSL, ANTs, HD-BET, dcm2bids and FreeSurfer"
+    MRtrix3Tissue 3Tissue_v5.2.9-f8ba0e3fa17cb3b6bb51bcc4939cde83243b8f4c
+    HD-BET 678e44d546a84de0f2a7fc245f176b82b7d912fd
+    FreeSurfer 6.0.0
+
+%environment
+    export DIFFUSION_ENV=/opt/diffusion
+    export FSLDIR=/opt/diffusion
+    export FREESURFER_HOME=/usr/local/freesurfer
+    export SUBJECTS_DIR="${SUBJECTS_DIR:-/subjects}"
+    export FSLOUTPUTTYPE=NIFTI_GZ
+    export FSLMULTIFILEQUIT=TRUE
+    export FSLTCLSH=/opt/diffusion/bin/fsltclsh
+    export FSLWISH=/opt/diffusion/bin/fslwish
+    export MNI_DIR=/opt/diffusion/data/standard
+    export PATH=/opt/MRtrix3Tissue/bin:/opt/diffusion/bin:/usr/local/freesurfer/bin:/usr/local/freesurfer/fsfast/bin:/usr/local/freesurfer/tktools:/usr/local/freesurfer/mni/bin:${PATH}
+    export PYTHONNOUSERSITE=1
+    export MPLCONFIGDIR=/tmp/matplotlib
+    export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
+
+%post
+    set -eux
+
+    # Build tools for the pinned MRtrix3Tissue fork, plus common pipeline tools.
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        bash \
+        bc \
+        ca-certificates \
+        curl \
+        g++-11 \
+        gcc-11 \
+        git \
+        libeigen3-dev \
+        libfftw3-dev \
+        libglu1-mesa \
+        libgomp1 \
+        libpng-dev \
+        libtiff-dev \
+        libx11-6 \
+        libxi6 \
+        libxmu6 \
+        libxt6 \
+        make \
+        perl \
+        python3 \
+        python-is-python3 \
+        tcsh \
+        unzip \
+        wget \
+        zip \
+        zlib1g-dev \
+        less 
+    rm -rf /var/lib/apt/lists/*
+
+    # Make GCC/G++ 11 the default for every later build system, including
+    # projects which invoke the generic cc/c++ names.
+    ln -sf /usr/bin/gcc-11 /usr/local/bin/gcc
+    ln -sf /usr/bin/gcc-11 /usr/local/bin/cc
+    ln -sf /usr/bin/g++-11 /usr/local/bin/g++
+    ln -sf /usr/bin/g++-11 /usr/local/bin/c++
+    gcc --version
+    g++ --version
+
+    # Install FreeSurfer 6 on top of Ubuntu 22.04 instead of inheriting its
+    # obsolete CentOS 6 / Ubuntu 14-era container environment.
+    FREESURFER_ARCHIVE=freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.0.tar.gz
+    curl -fL \
+        "https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.0/${FREESURFER_ARCHIVE}" \
+        -o "/tmp/${FREESURFER_ARCHIVE}"
+    tar -xzf "/tmp/${FREESURFER_ARCHIVE}" -C /usr/local
+    rm "/tmp/${FREESURFER_ARCHIVE}"
+    test -x /usr/local/freesurfer/bin/recon-all
+
+    # A pinned Miniforge supplies one self-contained runtime for FSL, ANTs and
+    # HD-BET. FSL's own channel must precede conda-forge.
+    MINIFORGE_VERSION=24.11.3-2
+    curl -fsSL \
+        "https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/Miniforge3-${MINIFORGE_VERSION}-Linux-x86_64.sh" \
+        -o /tmp/miniforge.sh
+    bash /tmp/miniforge.sh -b -p /opt/conda
+    rm /tmp/miniforge.sh
+
+    /opt/conda/bin/conda create -k -y -p /opt/diffusion \
+        --override-channels \
+        -c https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public/ \
+        -c conda-forge \
+        python=3.11 \
+        pip \
+        ants \
+        fsl-base \
+        fsl-avwutils \
+        fsl-bet2 \
+        fsl-fast4 \
+        fsl-first \
+        fsl-flirt \
+        fsl-topup \
+        fsl-eddy \
+        fsl-data_standard \
+        dcm2niix
+
+    # The institute blocks Anaconda-hosted paid channels, including "pytorch".
+    # Per its Miniforge migration guide, install CPU PyTorch from PyTorch's pip
+    # wheel index instead. The -k workaround applies to conda, not pip.
+    /opt/diffusion/bin/python -m pip install --no-cache-dir \
+        torch==2.5.1 \
+        --index-url https://download.pytorch.org/whl/cpu
+
+    # Match the actual local MRtrix3Tissue installation, including
+    # ss3t_csd_beta1.
+    git clone https://github.com/3Tissue/MRtrix3Tissue.git /opt/MRtrix3Tissue
+    git -C /opt/MRtrix3Tissue checkout f8ba0e3fa17cb3b6bb51bcc4939cde83243b8f4c
+    cd /opt/MRtrix3Tissue
+
+    # Follow the documented server/HPC installation sequence with Ubuntu
+    # 22.04's system GCC/G++ 11. No Conda compiler is involved.
+    /usr/bin/gcc-11 --version
+    /usr/bin/g++-11 --version
+    CC=/usr/bin/gcc-11 CXX=/usr/bin/g++-11 ./configure -nogui
+    ./build
+    /opt/MRtrix3Tissue/bin/mrinfo -version
+
+    # Install HD-BET from the inspected Git revision, not an unpinned PyPI
+    # release. Put its weights in the immutable image instead of $HOME.
+    git clone https://github.com/MIC-DKFZ/HD-BET.git /opt/HD-BET
+    git -C /opt/HD-BET checkout 678e44d546a84de0f2a7fc245f176b82b7d912fd
+
+    # Pin Python 3.11-compatible manylinux wheels and reject source
+    # distributions to keep this layer deterministic.
+    /opt/diffusion/bin/python -m pip install --no-cache-dir \
+        --only-binary=:all: \
+        numpy==2.2.6 \
+        scikit-image==0.25.2
+    /opt/diffusion/bin/python -m pip install --no-cache-dir \
+        "nnunetv2>=2.5.1,<2.7" \
+        SimpleITK \
+        dcm2bids
+    sed -i \
+        "s|os.path.join(os.path.expanduser('~'), 'hd-bet_params', 'release_2.0.0')|'/opt/hd-bet_params/release_2.0.0'|" \
+        /opt/HD-BET/HD_BET/paths.py
+    /opt/diffusion/bin/python -m pip install --no-cache-dir --no-deps /opt/HD-BET
+    /opt/diffusion/bin/python -c \
+        "from HD_BET.checkpoint_download import maybe_download_parameters; maybe_download_parameters()"
+
+    /opt/conda/bin/conda clean -afy
+    find /opt/MRtrix3Tissue -type d -name .git -prune -exec rm -rf '{}' +
+    find /opt/HD-BET -type d -name .git -prune -exec rm -rf '{}' +
+
+%runscript
+    exec "$@"
+
+%test
+    set -eu
+    command -v ss3t_csd_beta1
+    command -v mrconvert
+    command -v eddy
+    command -v flirt
+    command -v fast
+    command -v antsRegistrationSyNQuick.sh
+    command -v antsApplyTransforms
+    command -v N4BiasFieldCorrection
+    command -v hd-bet
+    command -v dcm2bids_helper
+    command -v dcm2niix
+    command -v recon-all
+    command -v mri_surf2surf
+    test -f /opt/hd-bet_params/release_2.0.0/fold_all/checkpoint_final.pth
+    mrconvert --version
+    eddy --help >/dev/null 2>&1
+    antsApplyTransforms --version
+    recon-all -version
+
+%help
+    This image contains the command-line dependencies used by the
+    Tractography_Pipeline repository.
+
+    Build:
+      apptainer build diffusion.sif diffusion.def
+      # or: singularity build diffusion.sif diffusion.def
+
+    FreeSurfer requires a personal license at runtime:
+      apptainer exec \
+        --bind /path/license.txt:/usr/local/freesurfer/license.txt:ro \
+        diffusion.sif recon-all ...
+
+    The pipeline's synb0-disco SIF remains a separate image. Run that step on
+    the host (nested Singularity/Apptainer is intentionally not installed).

@@ -3,7 +3,6 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=64G
 #SBATCH --time=24:00:00
-#SBATCH --chdir=/network/iss/cohen/data/Ivan/Tractography/
 #SBATCH --output=outputs/control_%A_%a.out.txt
 #SBATCH --error=outputs/control_%A_%a.err.txt
 #SBATCH --mail-user=ivan.mindlin@icm-institute.org
@@ -11,7 +10,7 @@
 
 # Single subject preprocessing 
 # New structure supports different scanner types
-# Usage: sbatch preprocess_single_control.sh /path/to/subject SCANNER SUBJECT_NAME 
+# Usage: sbatch preprocess_single_subject.sh /bids/sub-ID SCANNER sub-ID
 
 module load MRtrix
 module load FSL
@@ -19,14 +18,19 @@ module load ANTs
 module load FreeSurfer
 module load singularity
 
+###############################################################################
+# PATH MACRO: edit ../paths_config.sh once, or override variables here.
+# Note: Slurm #SBATCH paths cannot expand shell variables; submitter scripts set
+# job output paths explicitly when site-specific absolute paths are needed.
+###############################################################################
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../paths_config.sh"
+
 # Get parameters
-SUBJECT_DIR=$1           # Full path to subject directory with T1_raw.nii.gz and Diff_raw.nii.gz
+SUBJECT_DIR=$1           # Full path to a BIDS sub-* directory
 SCANNER_TYPE=$2          # Scanner type (GE, siemens)
 SUBJECT_NAME=$3          # Subject identifier (e.g., Hv01023Pelda)
 
-
-MNI_TEMPLATE="/network/iss/cohen/data/Ivan/Tractography/MNI152_T1_2mm.nii.gz"
-SYNB0_SIF="/network/iss/cohen/data/Ivan/Tractography/synb0-disco_v3.0.sif"
 
 echo "=========================================="
 echo "Processing subject: $SUBJECT_NAME"
@@ -34,8 +38,23 @@ echo "Scanner: $SCANNER_TYPE"
 echo "Working directory: $SUBJECT_DIR"
 echo "=========================================="
 
-# Set working directory to subject folder
-cd "$SUBJECT_DIR" || exit 1
+ANAT_DIR="$SUBJECT_DIR/anat"
+DWI_DIR="$SUBJECT_DIR/dwi"
+T1_FILE=$(find "$ANAT_DIR" -maxdepth 1 -type f -name "${SUBJECT_NAME}*_T1w.nii.gz" -print -quit 2>/dev/null)
+DWI_FILE=$(find "$DWI_DIR" -maxdepth 1 -type f -name "${SUBJECT_NAME}*_dwi.nii.gz" -print -quit 2>/dev/null)
+DWI_STEM="${DWI_FILE%.nii.gz}"
+BVAL_FILE="${DWI_STEM}.bval"
+BVEC_FILE="${DWI_STEM}.bvec"
+
+for required_file in "$T1_FILE" "$DWI_FILE" "$BVAL_FILE" "$BVEC_FILE"; do
+    if [ -z "$required_file" ] || [ ! -f "$required_file" ]; then
+        echo "Missing required BIDS input: $required_file" >&2
+        exit 1
+    fi
+done
+
+# Diffusion-derived working files stay in the BIDS dwi modality folder.
+cd "$DWI_DIR" || exit 1
 
 # Store scanner type info in a log file for reference
 cat > preprocessing_info.txt << EOF
@@ -53,7 +72,7 @@ echo "Scanner info saved to preprocessing_info.txt"
 echo ""
 echo "Step 2: Converting to MRtrix format and denoising..."
 #
-mrconvert Diff_raw.nii.gz Diff.mif -fslgrad Diff_raw.bvec Diff_raw.bval -force
+mrconvert "$DWI_FILE" Diff.mif -fslgrad "$BVEC_FILE" "$BVAL_FILE" -force
 #
 ## Denoise with extent 7 (similar to Siemens pipeline)
 dwidenoise Diff.mif Diff_den_ext7.mif -extent 7 -noise noise_ext7.mif -force
@@ -78,14 +97,14 @@ mkdir -p INPUTS OUTPUTS
 ## Create acquisition parameters file
 if [ "$SCANNER_TYPE" == "siemens" ]; then
     # Siemens: AP direction only
-    cp /network/iss/cohen/data/Ivan/Tractography/workbench_siemens/acqparams_siemens.txt INPUTS/acqparams.txt
+    cp "$SIEMENS_ACQPARAMS" INPUTS/acqparams.txt
     # Extract mean b0 from AP
     dwiextract Diff_den_gibbs.mif - -bzero -force | mrmath - mean mean_b0_AP.mif -axis 3 -force
     mrconvert mean_b0_AP.mif mean_b0_AP.nii.gz -force
     cp mean_b0_AP.nii.gz INPUTS/b0.nii.gz
 elif [ "$SCANNER_TYPE" == "GE" ]; then
     # GE: AP direction only, different total readout time
-    cp /network/iss/cohen/data/Ivan/Tractography/workbench_GE/acqparams_GE.txt INPUTS/acqparams.txt
+    cp "$GE_ACQPARAMS" INPUTS/acqparams.txt
     # Extract mean b0 from PA
     dwiextract Diff_den_gibbs.mif - -bzero -force | mrmath - mean mean_b0_PA.mif -axis 3 -force
     mrconvert mean_b0_PA.mif mean_b0_PA.nii.gz -force
@@ -97,7 +116,7 @@ fi
 #
 #
 #
-cp T1_raw.nii.gz INPUTS/T1.nii.gz
+cp "$T1_FILE" INPUTS/T1.nii.gz
 
 
 ##############################################
@@ -178,8 +197,8 @@ if [ ! -f "eddy_unwarped_images.nii.gz" ]; then
      --mask=preproc_mask.nii.gz \
      --acqp=INPUTS/acqparams.txt \
      --index=eddy_indices.txt \
-     --bvecs=Diff_raw.bvec \
-     --bvals=Diff_raw.bval \
+     --bvecs="$BVEC_FILE" \
+     --bvals="$BVAL_FILE" \
      --topup=OUTPUTS/topup \
      --out=eddy_unwarped_images \
      --verbose
@@ -193,7 +212,7 @@ fi
 
 
 # Convert back to MRtrix format
-mrconvert eddy_unwarped_images.nii.gz Diff_preproc.mif -fslgrad eddy_unwarped_images.eddy_rotated_bvecs Diff_raw.bval -force
+mrconvert eddy_unwarped_images.nii.gz Diff_preproc.mif -fslgrad eddy_unwarped_images.eddy_rotated_bvecs "$BVAL_FILE" -force
 
 ##############################################
 # STEP 7: Bias field correction

@@ -1,28 +1,20 @@
 
 #!/bin/bash
-output=/network/iss/cohen/data/Ivan/Tractography/outputs
-tissue_job=/network/iss/cohen/data/Ivan/Tractography/scripts/segment5tt/tissue_job.sh
-#data_folder=/network/iss/cohen/data/Ivan/Tractography/
-data_folder=/network/iss/cohen/data/Ivan/DiffusionControl/workbench
-cd $data_folder
-folder_siemens="workbench_siemens"
-cd "$folder_siemens"
-for patient_folder in */; do
-	if [ -d "$patient_folder" ]; then
-        echo "Doing $patient_folder"
-		cd "$patient_folder"   
-        sbatch --job-name="5tt-$patient_folder" --output="$output/$(basename $patient_folder)5tt-%j.out.txt" --error="$output/$(basename $patient_folder)5tt-%j.err.txt" --mem=16G --time=48:00:00 $tissue_job $patient_folder $folder_siemens $data_folder  
-		cd ..
-	fi
-done
-cd ..
-folder_GE="workbench_GE"
-cd "$folder_GE"
-for patient_folder in */; do
-	if [ -d "$patient_folder" ]; then
-		echo "Doing $patient_folder"
-		cd "$patient_folder"   		
-		sbatch --job-name="5tt-$patient_folder" --output="$output/$(basename $patient_folder)5tt-%j.out.txt" --error="$output/$(basename $patient_folder)5tt-%j.err.txt" --mem=16G --time=48:00:00 $tissue_job $patient_folder $folder_GE $data_folder	        
-		cd ..
-	fi
+###############################################################################
+# PATH MACRO: edit ../paths_config.sh once, or override variables here.
+###############################################################################
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../paths_config.sh"
+output="${OUTPUT_DIR}"
+tissue_job="${TISSUE_JOB:-${SCRIPT_DIR}/tissue_job.sh}"
+data_folder="${BIDS_ROOT}"
+mkdir -p "$output"
+for subject_dir in "$data_folder"/sub-*; do
+    [ -d "$subject_dir/anat" ] && [ -d "$subject_dir/dwi" ] || continue
+    subject_id=$(basename "$subject_dir")
+    echo "Doing $subject_id"
+    sbatch --job-name="5tt-$subject_id" \
+        --output="$output/${subject_id}-5tt-%j.out.txt" \
+        --error="$output/${subject_id}-5tt-%j.err.txt" \
+        --mem=16G --time=48:00:00 "$tissue_job" "$subject_dir"
 done

@@ -10,12 +10,15 @@
 
 module load MRtrix
 module load python/3.8
-patient_folder=$1
-scanner_folder=$2
-data_folder=$3
-cd "$data_folder"
-cd "$scanner_folder"
-cd "$patient_folder"        
+
+###############################################################################
+# PATH MACRO: edit ../paths_config.sh once, or override variables here.
+###############################################################################
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../paths_config.sh"
+
+subject_dir=$1
+cd "$subject_dir/dwi" || exit 1
 
 if [ ! -f "preproc_mask_resampled.mif" ]; then
     mrconvert preproc_mask.nii.gz preproc_mask.mif -force
