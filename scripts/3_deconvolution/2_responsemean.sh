@@ -4,7 +4,8 @@
 # PATH MACRO: edit ../paths_config.sh once, or override variables here.
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+PIPELINE_ROOT="${1:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+source "${PIPELINE_ROOT}/scripts/paths_config.sh"
 RESPONSE_DATA_DIR="${RESPONSE_DATA_DIR:-${BIDS_ROOT}}"
 cd "$RESPONSE_DATA_DIR" || exit 1
 
@@ -15,12 +16,13 @@ for tissue in "${tissues[@]}"; do
 
 		for subject_dir in sub-*/; do
 			[ -d "$subject_dir/dwi" ] || continue
-			tissue_file="${subject_dir}dwi/${tissue}.txt"
+			subject=$(basename "$subject_dir")
+			tissue_file="${subject_dir}dwi/${subject}_desc-dhollander_response-${tissue}.txt"
 			if [ -f "$tissue_file" ]; then
 				files+=("$tissue_file")
-				echo "Found ${tissue}.txt in $subject_dir/dwi"
+				echo "Found $tissue_file"
 			else
-				echo "No ${tissue}.txt in $subject_dir/dwi"
+				echo "No $tissue_file"
 			fi
 		done
 
@@ -28,14 +30,15 @@ for tissue in "${tissues[@]}"; do
 			echo "No ${tissue} responses found; skipping" >&2
 			continue
 		fi
-		output_file="mean_${tissue}_dhollander.txt"
+		output_file="desc-meanDhollander_response-${tissue}.txt"
 		echo "Calculating average for ${tissue}.txt files: output -> $output_file"
 		responsemean "${files[@]}" "$output_file" -force
 
 		for subject_dir in sub-*/; do
 			[ -d "$subject_dir/dwi" ] || continue
-			dest_file="${subject_dir}dwi/${output_file}"
+			subject=$(basename "$subject_dir")
+			dest_file="${subject_dir}dwi/${subject}_${output_file}"
 			cp "$output_file" "$dest_file"
-			echo "Copied $output_file to $subject_dir/dwi"
+			echo "Copied $output_file to $dest_file"
 		done
 done

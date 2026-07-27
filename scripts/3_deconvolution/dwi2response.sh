@@ -29,4 +29,9 @@ if [ ! -f "preproc_mask_resampled.mif" ]; then
     mrconvert preproc_mask.nii.gz preproc_mask.mif -force
     mrtransform preproc_mask.mif -template ${subject}_desc-preproc_dwi.mif -interp nearest preproc_mask_resampled.mif -force
 fi
-dwi2response dhollander ${subject}_desc-preproc_dwi.mif wm.txt gm.txt csf.txt -voxels voxels.mif -nthreads 16 -force
+dwi2response dhollander "${subject}_desc-preproc_dwi.mif" \
+    "${subject}_desc-dhollander_response-wm.txt" \
+    "${subject}_desc-dhollander_response-gm.txt" \
+    "${subject}_desc-dhollander_response-csf.txt" \
+    -voxels "${subject}_desc-dhollander_voxels.mif" \
+    -nthreads 16 -force
