@@ -8,20 +8,21 @@ source "${SCRIPT_DIR}/../paths_config.sh"
 
 folder="$RAW_DICOM_DIR"
 converted_data_dir="${DCM2BIDS_OUTPUT_DIR:-${BIDS_ROOT}}"
+output="${OUTPUT_DIR}"
+dcm2bids_job="${DCM2BIDS_JOB:-${SCRIPT_DIR}/dcm2bids_job.sh}"
 mkdir -p "$converted_data_dir"
+mkdir -p "$output"
 
-# Iterate over each file in the folder
 for file in "$folder"/*.zip; do
     [ -e "$file" ] || continue
-    # Extract the filename without extension
     filename=$(basename "$file" .zip)
-    
     subject_label="${filename#sub-}"
-
-    # dcm2bids_helper creates temporary conversion data. The final dcm2bids
-    # command (run with the site's configuration) must write sub-<label>/anat
-    # and sub-<label>/dwi under BIDS_ROOT.
-    mkdir -p "${converted_data_dir}/tmp_dcm2bids/sub-${subject_label}"
-    dcm2bids_helper -d "$file" \
-        -o "${converted_data_dir}/tmp_dcm2bids/sub-${subject_label}"
+    job_dir="${converted_data_dir}/tmp_dcm2bids/sub-${subject_label}"
+    mkdir -p "$job_dir"
+    echo "Submitting DICOM conversion for sub-${subject_label}"
+    sbatch --job-name="dcm2bids-sub-${subject_label}" \
+        --output="$output/sub-${subject_label}-dcm2bids-%j.out.txt" \
+        --error="$output/sub-${subject_label}-dcm2bids-%j.err.txt" \
+        --chdir="$job_dir" \
+        "$dcm2bids_job" "$file" "$subject_label" "$PIPELINE_ROOT"
 done

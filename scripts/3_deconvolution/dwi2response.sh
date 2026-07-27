@@ -25,9 +25,12 @@ echo "Current working directory: $(pwd)"
 subject=$(basename "$subject_dir")
 
 mrconvert ${subject}_desc-preproc_dwi.nii.gz ${subject}_desc-preproc_dwi.mif -fslgrad ${subject}_desc-preproc_dwi.bvec ${subject}_desc-preproc_dwi.bval -force -force 
-if [ ! -f "preproc_mask_resampled.mif" ]; then
-    mrconvert preproc_mask.nii.gz preproc_mask.mif -force
-    mrtransform preproc_mask.mif -template ${subject}_desc-preproc_dwi.mif -interp nearest preproc_mask_resampled.mif -force
+if [ ! -f "${subject}_desc-resampled_mask.mif" ]; then
+    mrconvert "${subject}_desc-brain_mask.nii.gz" \
+        "${subject}_desc-brain_mask.mif" -force
+    mrtransform "${subject}_desc-brain_mask.mif" \
+        -template "${subject}_desc-preproc_dwi.mif" \
+        -interp nearest "${subject}_desc-resampled_mask.mif" -force
 fi
 dwi2response dhollander "${subject}_desc-preproc_dwi.mif" \
     "${subject}_desc-dhollander_response-wm.txt" \

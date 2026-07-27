@@ -31,7 +31,7 @@ dwi2fod msmt_csd "$dwi_file" \
     "$wm_response" "${subject}_model-msmt_fod-wm.mif" \
     "$gm_response" "${subject}_model-msmt_fod-gm.mif" \
     "$csf_response" "${subject}_model-msmt_fod-csf.mif" \
-    -mask preproc_mask_resampled.mif \
+    -mask "${subject}_desc-resampled_mask.mif" \
     -nthreads "${SLURM_CPUS_PER_TASK:-32}" \
     -force
 
@@ -47,6 +47,6 @@ mtnormalise \
     "${subject}_model-msmt_desc-normalized_fod-gm.mif" \
     "${subject}_model-msmt_fod-csf.mif" \
     "${subject}_model-msmt_desc-normalized_fod-csf.mif" \
-    -mask preproc_mask_resampled.mif \
+    -mask "${subject}_desc-resampled_mask.mif" \
     -nthreads "${SLURM_CPUS_PER_TASK:-32}" \
     -force

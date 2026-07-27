@@ -32,17 +32,21 @@ for subject_dir in "$BIDS_DATASET"/sub-*; do
         fi
         subject_name=$(basename "$subject_dir")
         t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f -name "${subject_name}*_T1w.nii.gz" -print -quit 2>/dev/null)
-        dwi_file=$(find "$subject_dir/dwi" -maxdepth 1 -type f -name "${subject_name}*_dwi.nii.gz" -print -quit 2>/dev/null)
+	        dwi_file=$(find "$subject_dir/dwi" -maxdepth 1 -type f \
+	            -name "${subject_name}*_dwi.nii.gz" \
+	            ! -name "${subject_name}*_desc-preproc_dwi.nii.gz" \
+	            -print -quit 2>/dev/null)
 
         if [ -n "$t1_file" ] && [ -n "$dwi_file" ]; then
             echo "  Submitting: $subject_name (scanner: $SCANNER_TYPE)"
-            sbatch --chdir="$PIPELINE_ROOT" \
-                --output="${OUTPUT_DIR}/control-%j.out.txt" \
-                --error="${OUTPUT_DIR}/control-%j.err.txt" \
+            sbatch --job-name="preproc-$subject_name" \
+                --chdir="$subject_dir/dwi" \
+                --output="${OUTPUT_DIR}/${subject_name}-preproc-%j.out.txt" \
+                --error="${OUTPUT_DIR}/${subject_name}-preproc-%j.err.txt" \
                 "$PREPROCESS_JOB" \
                 "$subject_dir" \
                 "$SCANNER_TYPE" \
-                "$subject_name"
+                "$PIPELINE_ROOT"
             
             ((total_jobs++))
         fi

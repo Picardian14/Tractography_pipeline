@@ -10,7 +10,7 @@
 
 # Single subject preprocessing 
 # New structure supports different scanner types
-# Usage: sbatch preprocess_single_subject.sh /bids/sub-ID SCANNER sub-ID
+# Usage: sbatch preprocess_single_subject.sh /bids/sub-ID SCANNER PIPELINE_ROOT
 
 module load MRtrix
 module load FSL
@@ -23,13 +23,13 @@ module load singularity
 # Note: Slurm #SBATCH paths cannot expand shell variables; submitter scripts set
 # job output paths explicitly when site-specific absolute paths are needed.
 ###############################################################################
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+PIPELINE_ROOT=$3
+source "${PIPELINE_ROOT}/scripts/paths_config.sh"
 
 # Get parameters
 SUBJECT_DIR=$1           # Full path to a BIDS sub-* directory
 SCANNER_TYPE=$2          # Scanner type (GE, siemens)
-SUBJECT_NAME=$3          # Subject identifier (e.g., Hv01023Pelda)
+SUBJECT_NAME=$(basename "$SUBJECT_DIR")
 
 
 echo "=========================================="
@@ -41,7 +41,10 @@ echo "=========================================="
 ANAT_DIR="$SUBJECT_DIR/anat"
 DWI_DIR="$SUBJECT_DIR/dwi"
 T1_FILE=$(find "$ANAT_DIR" -maxdepth 1 -type f -name "${SUBJECT_NAME}*_T1w.nii.gz" -print -quit 2>/dev/null)
-DWI_FILE=$(find "$DWI_DIR" -maxdepth 1 -type f -name "${SUBJECT_NAME}*_dwi.nii.gz" -print -quit 2>/dev/null)
+DWI_FILE=$(find "$DWI_DIR" -maxdepth 1 -type f \
+    -name "${SUBJECT_NAME}*_dwi.nii.gz" \
+    ! -name "${SUBJECT_NAME}*_desc-preproc_dwi.nii.gz" \
+    -print -quit 2>/dev/null)
 DWI_STEM="${DWI_FILE%.nii.gz}"
 BVAL_FILE="${DWI_STEM}.bval"
 BVEC_FILE="${DWI_STEM}.bvec"
@@ -53,18 +56,24 @@ for required_file in "$T1_FILE" "$DWI_FILE" "$BVAL_FILE" "$BVEC_FILE"; do
     fi
 done
 
-# Diffusion-derived working files stay in the BIDS dwi modality folder.
-cd "$DWI_DIR" || exit 1
+PREPROC_DWI_MIF="${SUBJECT_NAME}_desc-preproc_dwi.mif"
+PREPROC_DWI_NII="${SUBJECT_NAME}_desc-preproc_dwi.nii.gz"
+PREPROC_BVAL="${SUBJECT_NAME}_desc-preproc_dwi.bval"
+PREPROC_BVEC="${SUBJECT_NAME}_desc-preproc_dwi.bvec"
+MASK_NII="${SUBJECT_NAME}_desc-brain_mask.nii.gz"
+MASK_MIF="${SUBJECT_NAME}_desc-brain_mask.mif"
+
+echo "Current working directory: $(pwd)"
 
 # Store scanner type info in a log file for reference
-cat > preprocessing_info.txt << EOF
+cat > "${SUBJECT_NAME}_desc-preprocessing_info.txt" << EOF
 SUBJECT_NAME: $SUBJECT_NAME
 SCANNER_TYPE: $SCANNER_TYPE
 SUBJECT_DIR: $SUBJECT_DIR
 PROCESSING_DATE: $(date)
 EOF
 
-echo "Scanner info saved to preprocessing_info.txt"
+echo "Scanner info saved to ${SUBJECT_NAME}_desc-preprocessing_info.txt"
 
 ##############################################
 # STEP 2: Convert to MRtrix and denoise
@@ -166,22 +175,22 @@ if [ -f mean_b0_AP.nii.gz ]; then
 elif [ -f mean_b0_PA.nii.gz ]; then
     input_b0="mean_b0_PA.nii.gz"
 else
-    echo "No mean b0 found  in $SUBJECT_DIR"
-    cd ..
-    continue
+    echo "No mean b0 found in $SUBJECT_DIR" >&2
+    exit 1
 fi
 # Extracted f
-if [ ! -f "preproc_mask.nii.gz" ]; then
+if [ ! -f "$MASK_NII" ]; then
     echo "  - Extracting brain mask from $input_b0..."
-    # Halt and ask to run HD-BET if not already done
-    if [ ! -f "T1_HDbet.nii.gz" ]; then
-        echo "  - T1_HDbet.nii.gz not found. Please run extract_brain_mask.sh first to generate the brain mask."
+    hdbet_mask="${SUBJECT_NAME}_desc-hdbet_T1w_mask.nii.gz"
+    if [ ! -f "$hdbet_mask" ]; then
+        echo "  - $hdbet_mask not found. Please run 2_extract_brain_mask.sh first."
         exit 1
     fi
+    cp "$hdbet_mask" "$MASK_NII"
 else
     echo "  - Brain mask already exists, skipping extraction."
 fi
-mrconvert preproc_mask.nii.gz preproc_mask.mif -force
+mrconvert "$MASK_NII" "$MASK_MIF" -force
 
 
 ##############################################
@@ -191,10 +200,10 @@ echo ""
 echo "Step 6: Running eddy correction..."
 
 # run eddy if files do not exist
-if [ ! -f "eddy_unwarped_images.nii.gz" ]; then
+if [ ! -f "$PREPROC_DWI_NII" ]; then
     echo "  - Running eddy..."
     eddy --imain=Diff_eddy_in.nii.gz \
-     --mask=preproc_mask.nii.gz \
+	     --mask="$MASK_NII" \
      --acqp=INPUTS/acqparams.txt \
      --index=eddy_indices.txt \
      --bvecs="$BVEC_FILE" \
@@ -203,7 +212,7 @@ if [ ! -f "eddy_unwarped_images.nii.gz" ]; then
      --out=eddy_unwarped_images \
      --verbose
     if [ $? -ne 0 ]; then
-        echo "ERROR: eddy failed for $SUBJECT"
+        echo "ERROR: eddy failed for $SUBJECT_NAME"
         exit 1
     fi
 else
@@ -221,6 +230,9 @@ echo ""
 echo "Step 7: Bias field correction..."
 
 dwibiascorrect ants Diff_preproc.mif Diff_preproc_unbiased.mif -bias bias.mif -force
+mrconvert Diff_preproc_unbiased.mif "$PREPROC_DWI_MIF" -force
+mrconvert "$PREPROC_DWI_MIF" "$PREPROC_DWI_NII" \
+    -export_grad_fsl "$PREPROC_BVEC" "$PREPROC_BVAL" -force
 
 ##############################################
 # STEP 8: Compute FA
@@ -229,13 +241,16 @@ echo ""
 echo "Step 8: Computing FA map..."
 
 # Compute tensor
-dwi2tensor Diff_preproc_unbiased.mif DTI.mif -mask preproc_mask.mif -force
+dwi2tensor "$PREPROC_DWI_MIF" "${SUBJECT_NAME}_model-dti_tensor.mif" \
+    -mask "$MASK_MIF" -force
 
 # Extract FA
-tensor2metric DTI.mif -fa FA.mif -force
+tensor2metric "${SUBJECT_NAME}_model-dti_tensor.mif" \
+    -fa "${SUBJECT_NAME}_model-dti_FA.mif" -force
 
 # Convert to NIfTI
-mrconvert FA.mif FA.nii.gz -force
+mrconvert "${SUBJECT_NAME}_model-dti_FA.mif" \
+    "${SUBJECT_NAME}_model-dti_FA.nii.gz" -force
 
 ##############################################
 # STEP 9: Register to MNI space
@@ -244,7 +259,7 @@ echo ""
 echo "Step 9: Registering FA to MNI space..."
 
 # Extract mean b0 for registration
-dwiextract Diff_preproc_unbiased.mif - -bzero -force | mrmath - mean mean_b0_final.mif -axis 3 -force
+dwiextract "$PREPROC_DWI_MIF" - -bzero -force | mrmath - mean mean_b0_final.mif -axis 3 -force
 mrconvert mean_b0_final.mif mean_b0_final.nii.gz -force
 
 ##############################################
@@ -268,7 +283,7 @@ fi
 
 
 # Apply transform to FA
-flirt -in FA.nii.gz \
+flirt -in "${SUBJECT_NAME}_model-dti_FA.nii.gz" \
       -ref "$MNI_TEMPLATE" \
       -applyxfm -init b02standard.mat \
       -out FA_in_MNI_direct.nii.gz \
@@ -286,7 +301,7 @@ echo ""
 echo "Step 9B: Registration via T1 using ANTs..."
 
 # Check if T1_HDbet exists
-if [ -f "T1_HDbet.nii.gz" ]; then
+if [ -f "${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" ]; then
     
     # Step 9b-i: Register T1 to MNI using ANTs
     # run if file does not exist
@@ -294,7 +309,7 @@ if [ -f "T1_HDbet.nii.gz" ]; then
          echo "  Registering T1 to MNI..."
         antsRegistrationSyNQuick.sh -d 3 \
             -f "$MNI_TEMPLATE" \
-            -m T1_HDbet.nii.gz \
+            -m "${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" \
             -o T1_to_MNI_ \
             -t a
         
@@ -308,7 +323,7 @@ if [ -f "T1_HDbet.nii.gz" ]; then
         
         echo "  Registering b0 to T1..."
         antsRegistrationSyNQuick.sh -d 3 \
-            -f T1_HDbet.nii.gz \
+            -f "${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" \
             -m mean_b0_final.nii.gz \
             -o b0_to_T1_ \
             -t r
@@ -319,7 +334,7 @@ if [ -f "T1_HDbet.nii.gz" ]; then
     # Step 9b-iii: Apply combined transforms to FA
     echo "  Applying combined transforms to FA..."
     antsApplyTransforms -d 3 \
-        -i FA.nii.gz \
+        -i "${SUBJECT_NAME}_model-dti_FA.nii.gz" \
         -r "$MNI_TEMPLATE" \
         -o FA_in_MNI_via_T1.nii.gz \
         -t T1_to_MNI_0GenericAffine.mat \
@@ -332,7 +347,7 @@ if [ -f "T1_HDbet.nii.gz" ]; then
     echo "  - FA_in_MNI_via_T1.nii (ANTs via T1 registration)"
     echo "  - T1_in_MNI_Warped.nii.gz (warped T1 for verification)"
 else
-    echo "  WARNING: T1_HDbet.nii.gz not found. Skipping ANTs via T1 option."
+    echo "  WARNING: ${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz not found. Skipping ANTs via T1 option."
 fi
 
 echo ""
@@ -343,9 +358,9 @@ echo "  - FA_in_MNI_via_T1.nii (OPTION B: via T1 using ANTs)"
 
 echo ""
 echo "=========================================="
-echo "Subject $SUBJECT processing complete!"
+echo "Subject $SUBJECT_NAME processing complete!"
 echo "End time: $(date)"
 echo "FA maps in MNI space:"
-echo "  Option A (direct): $SUBJ_OUTPUT/FA_in_MNI_direct.nii"
-echo "  Option B (via T1): $SUBJ_OUTPUT/FA_in_MNI_via_T1.nii"
+echo "  Option A (direct): $DWI_DIR/FA_in_MNI_direct.nii"
+echo "  Option B (via T1): $DWI_DIR/FA_in_MNI_via_T1.nii"
 echo "=========================================="
