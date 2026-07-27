@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../paths_config.sh"
 output="${OUTPUT_DIR}"
 dwi2resp="${DWI2RESPONSE_JOB:-${SCRIPT_DIR}/dwi2response.sh}"
+
 data_folder="${BIDS_ROOT}"
 mkdir -p "$output"
 for subject_dir in "$data_folder"/sub-*; do
@@ -16,5 +17,6 @@ for subject_dir in "$data_folder"/sub-*; do
     sbatch --job-name="dwi2resp-$subject_id" \
         --output="$output/${subject_id}-dwi2resp-%j.out.txt" \
         --error="$output/${subject_id}-dwi2resp-%j.err.txt" \
-        "$dwi2resp" "$subject_dir"
+        --chdir="$subject_dir/dwi" \
+        "$dwi2resp" "$subject_dir" "$PIPELINE_ROOT"
 done
