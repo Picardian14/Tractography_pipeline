@@ -16,5 +16,7 @@ for subject_dir in "$data_folder"/sub-*; do
     sbatch --job-name="5tt-$subject_id" \
         --output="$output/${subject_id}-5tt-%j.out.txt" \
         --error="$output/${subject_id}-5tt-%j.err.txt" \
-        --mem=16G --time=48:00:00 "$tissue_job" "$subject_dir"
+        --chdir="$subject_dir/dwi" \
+        --mem=16G --time=48:00:00 \
+        "$tissue_job" "$subject_dir" "$PIPELINE_ROOT"
 done

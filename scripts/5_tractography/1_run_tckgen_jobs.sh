@@ -16,5 +16,7 @@ for subject_dir in "$data_folder"/sub-*; do
     sbatch --job-name="tck-$subject_id" \
         --output="$output/${subject_id}-tck-%j.out.txt" \
         --error="$output/${subject_id}-tck-%j.err.txt" \
-        --mem=16G --time=12:00:00 "$tckgen_job" "$subject_dir"
+        --chdir="$subject_dir/dwi" \
+        --mem=16G --time=12:00:00 \
+        "$tckgen_job" "$subject_dir" "$PIPELINE_ROOT"
 done

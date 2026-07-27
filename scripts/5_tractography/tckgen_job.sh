@@ -20,18 +20,31 @@ module load python/3.8
 ###############################################################################
 # PATH MACRO: edit ../paths_config.sh once, or override variables here.
 ###############################################################################
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+PIPELINE_ROOT=$2
+source "${PIPELINE_ROOT}/scripts/paths_config.sh"
 
 subject_dir=$1
 subject_id=$(basename "$subject_dir")
-cd "$subject_dir/dwi" || exit 1
 echo "Job Doing $subject_id"
+echo "Current working directory: $(pwd)"
 
-if [ -f "wmfod_norm.mif" ]; then
-    tckgen -act 5tt_coreg.mif -backtrack -seed_gmwmi gmwmSeed_coreg.mif -nthreads 8 -select 10000000 wmfod_norm.mif tracks_10M_norm.tck -force
-    tckedit tracks_10M_norm.tck -number 200k smallerTracks_200k_norm.tck -force
-    tcksift2 -act 5tt_coreg.mif -out_mu sift_mu_norm.txt -out_coeffs sift_coeffs_norm.txt -nthreads 8 tracks_10M_norm.tck wmfod_norm.mif sift_10M_norm.txt -force
+wm_fod="${subject_id}_model-msmt_desc-normalized_fod-wm.mif"
+act_file="${subject_id}_desc-coreg_5tt.mif"
+seed_file="${subject_id}_desc-coreg_gmwmi.mif"
+tracks="${subject_id}_model-msmt_tractogram-10M.tck"
+
+if [ -f "$wm_fod" ]; then
+    tckgen -act "$act_file" -backtrack -seed_gmwmi "$seed_file" \
+        -nthreads "${SLURM_CPUS_PER_TASK:-8}" -select 10000000 \
+        "$wm_fod" "$tracks" -force
+    tckedit "$tracks" -number 200k \
+        "${subject_id}_model-msmt_tractogram-200k.tck" -force
+    tcksift2 -act "$act_file" \
+        -out_mu "${subject_id}_model-msmt_sift2-mu.txt" \
+        -out_coeffs "${subject_id}_model-msmt_sift2-coeffs.txt" \
+        -nthreads "${SLURM_CPUS_PER_TASK:-8}" \
+        "$tracks" "$wm_fod" "${subject_id}_model-msmt_sift2-weights.txt" -force
 else
-    echo "wmfod_norm.mif not found in $subject_dir/dwi"
+    echo "$wm_fod not found in $subject_dir/dwi" >&2
+    exit 1
 fi

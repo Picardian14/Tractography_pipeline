@@ -20,35 +20,41 @@ module load python/3.8
 ###############################################################################
 # PATH MACRO: edit ../paths_config.sh once, or override variables here.
 ###############################################################################
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+PIPELINE_ROOT=$2
+source "${PIPELINE_ROOT}/scripts/paths_config.sh"
 
 subject_dir=$1
 subject_id=$(basename "$subject_dir")
 anat_dir="$subject_dir/anat"
 dwi_dir="$subject_dir/dwi"
 t1_file=$(find "$anat_dir" -maxdepth 1 -type f -name "${subject_id}*_T1w.nii.gz" -print -quit)
-cd "$dwi_dir" || exit 1
 echo "Job Doing $subject_id"
+echo "Current working directory: $(pwd)"
 
-#mrconvert T1_CAT12.nii T1_CAT12.mif -force
-if [ ! -f "5tt_coreg.mif" ]; then
+if [ ! -f "${subject_id}_desc-coreg_5tt.mif" ]; then
     echo "  - Generating 5tt coregistered to DWI..."
-    mrconvert "$t1_file" T1_raw.mif -force
-    5ttgen fsl T1_raw.mif 5tt_nocoreg.mif -force 
-    dwiextract Diff_preproc_unbiased.mif - -bzero | mrmath - mean mean_b0.mif -axis 3 -force
-    mrconvert mean_b0.mif mean_b0.nii.gz -force
-    mrconvert 5tt_nocoreg.mif 5tt_nocoreg.nii.gz -force
-    fslroi 5tt_nocoreg.nii.gz 5tt_vol0.nii.gz 0 1 
-    flirt -in 5tt_vol0.nii.gz -ref mean_b0.nii.gz -interp nearestneighbour -dof 6 -omat rigid_T1toDWI.mat # suggestion by jan paul to do T1 2 Diff
-
-    transformconvert rigid_T1toDWI.mat 5tt_vol0.nii.gz mean_b0.nii.gz flirt_import rigid_T1toDWI.txt -force # he suggested this for checking eddt unwarping step but shouldapply here as well
-
-    mrtransform 5tt_nocoreg.nii.gz -linear rigid_T1toDWI.txt -inverse 5tt_coreg.nii -force
-    mrconvert 5tt_coreg.nii 5tt_coreg.mif -force
-    #mrview Diff_preproc_unbiased.mif -overlay.load 5tt_nocoreg.mif -overlay.colourmap 2 -overlay.load 5tt_coreg.mif -overlay.colourmap 1
-    5tt2gmwmi 5tt_coreg.mif gmwmSeed_coreg.mif -force	
-
+    mrconvert "$t1_file" "${subject_id}_desc-raw_T1w.mif" -force
+    5ttgen fsl "${subject_id}_desc-raw_T1w.mif" "${subject_id}_desc-nocoreg_5tt.mif" -force
+    dwiextract "${subject_id}_desc-preproc_dwi.mif" - -bzero | \
+        mrmath - mean "${subject_id}_desc-mean_b0.mif" -axis 3 -force
+    mrconvert "${subject_id}_desc-mean_b0.mif" "${subject_id}_desc-mean_b0.nii.gz" -force
+    mrconvert "${subject_id}_desc-nocoreg_5tt.mif" "${subject_id}_desc-nocoreg_5tt.nii.gz" -force
+    fslroi "${subject_id}_desc-nocoreg_5tt.nii.gz" "${subject_id}_desc-nocoreg_5tt_vol0.nii.gz" 0 1
+    flirt -in "${subject_id}_desc-nocoreg_5tt_vol0.nii.gz" \
+        -ref "${subject_id}_desc-mean_b0.nii.gz" \
+        -interp nearestneighbour -dof 6 \
+        -omat "${subject_id}_from-T1w_to-dwi_rigid.mat"
+    transformconvert "${subject_id}_from-T1w_to-dwi_rigid.mat" \
+        "${subject_id}_desc-nocoreg_5tt_vol0.nii.gz" \
+        "${subject_id}_desc-mean_b0.nii.gz" \
+        flirt_import "${subject_id}_from-T1w_to-dwi_rigid.txt" -force
+    mrtransform "${subject_id}_desc-nocoreg_5tt.nii.gz" \
+        -linear "${subject_id}_from-T1w_to-dwi_rigid.txt" -inverse \
+        "${subject_id}_desc-coreg_5tt.nii.gz" -force
+    mrconvert "${subject_id}_desc-coreg_5tt.nii.gz" \
+        "${subject_id}_desc-coreg_5tt.mif" -force
+    5tt2gmwmi "${subject_id}_desc-coreg_5tt.mif" \
+        "${subject_id}_desc-coreg_gmwmi.mif" -force
 else
-    echo "  - 5tt_coreg.mif already exists, skipping generation."
+    echo "  - ${subject_id}_desc-coreg_5tt.mif already exists, skipping generation."
 fi

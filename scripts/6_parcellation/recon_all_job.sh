@@ -17,8 +17,8 @@ ml FreeSurfer/6.0.0
 ###############################################################################
 # PATH MACRO: edit ../paths_config.sh once, or override variables here.
 ###############################################################################
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+PIPELINE_ROOT=$2
+source "${PIPELINE_ROOT}/scripts/paths_config.sh"
 
 subject_dir=$1
 subject_id=$(basename "$subject_dir")
