@@ -1,0 +1,10 @@
+dwi2fod: [WARNING] existing output files will be overwritten
+dwi2fod: preloading data for "sub-100408_desc-preproc_dwi.mif"... [==================================================]
+dwi2fod: performing MSMT CSD (4 shells, 3 tissues)... [==================================================]
+mrcat: [WARNING] existing output files will be overwritten
+mrconvert: copying from "sub-100408_model-msmt_fod-wm.mif" to "/tmp/mrtrix-tmp-NBl1aS.mif"... [==================================================]
+mrcat: concatenating "sub-100408_model-msmt_fod-csf.mif"... [==================================================]
+mrcat: concatenating "sub-100408_model-msmt_fod-gm.mif"... [==================================================]
+mrcat: concatenating "/tmp/mrtrix-tmp-NBl1aS.mif"... [==================================================]
+mtnormalise: [WARNING] existing output files will be overwritten
+mtnormalise: performing log-domain intensity normalisation... [==================================================]

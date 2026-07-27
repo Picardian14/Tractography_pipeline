@@ -1,0 +1,2 @@
+Job Doing /network/iss/home/ivan.mindlin/Repos/Tractography_pipeline/data//sub-100408
+Current working directory: /network/iss/cohen/data/Ivan/HCP_YOUNG_ADULTS_UNRELATED_TEST/sub-100408/dwi
