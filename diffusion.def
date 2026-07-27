@@ -77,6 +77,18 @@ From: ubuntu:22.04
     rm "/tmp/${FREESURFER_ARCHIVE}"
     test -x /usr/local/freesurfer/bin/recon-all
 
+    # MRtrix3Tissue 3Tissue_v5.2.9 predates Eigen 3.4. Eigen 3.4 declares a
+    # templated Eigen::Vector3 alias that collides with this fork's own
+    # Eigen::Vector3 declaration. Install the known-working header-only 3.3.9
+    # release for MRtrix without replacing Ubuntu's system Eigen.
+    EIGEN_VERSION=3.3.9
+    curl -fsSL \
+        "https://gitlab.com/libeigen/eigen/-/archive/${EIGEN_VERSION}/eigen-${EIGEN_VERSION}.tar.gz" \
+        -o "/tmp/eigen-${EIGEN_VERSION}.tar.gz"
+    tar -xzf "/tmp/eigen-${EIGEN_VERSION}.tar.gz" -C /opt
+    rm "/tmp/eigen-${EIGEN_VERSION}.tar.gz"
+    test -f "/opt/eigen-${EIGEN_VERSION}/Eigen/Core"
+
     # A pinned Miniforge supplies one self-contained runtime for FSL, ANTs and
     # HD-BET. FSL's own channel must precede conda-forge.
     MINIFORGE_VERSION=24.11.3-2
@@ -118,10 +130,15 @@ From: ubuntu:22.04
     cd /opt/MRtrix3Tissue
 
     # Follow the documented server/HPC installation sequence with Ubuntu
-    # 22.04's system GCC/G++ 11. No Conda compiler is involved.
+    # 22.04's system GCC/G++ 11 and the same Eigen 3.3.9 headers as the
+    # known-working local configuration. No Conda compiler is involved.
     /usr/bin/gcc-11 --version
     /usr/bin/g++-11 --version
-    CC=/usr/bin/gcc-11 CXX=/usr/bin/g++-11 ./configure -nogui
+    EIGEN_CFLAGS="-isystem /opt/eigen-3.3.9" \
+        CC=/usr/bin/gcc-11 \
+        CXX=/usr/bin/g++-11 \
+        ./configure -nogui
+    grep -F "eigen_cflags = [ '-isystem', '/opt/eigen-3.3.9'" config
     ./build
     /opt/MRtrix3Tissue/bin/mrinfo -version
 
@@ -172,7 +189,7 @@ From: ubuntu:22.04
     test -f /opt/hd-bet_params/release_2.0.0/fold_all/checkpoint_final.pth
     mrconvert --version
     eddy --help >/dev/null 2>&1
-    antsApplyTransforms --version
+    antsApplyTransforms --help >/dev/null 2>&1
     recon-all -version
 
 %help

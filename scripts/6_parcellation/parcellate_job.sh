@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=medium
+#SBATCH --partition=compute
 #SBATCH --cpus-per-task=4
 
 #SBATCH --mail-user=ivan.mindlin@icm-institute.org

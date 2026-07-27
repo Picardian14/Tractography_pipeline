@@ -35,6 +35,14 @@ dependencies, repository clone, tagged checkout, `./configure -nogui`, and
 linked to version 11 for any subsequent source build. No Conda compiler or
 Conda activation is used for MRtrix.
 
+MRtrix3Tissue `3Tissue_v5.2.9` is configured specifically against Eigen 3.3.9
+under `/opt/eigen-3.3.9`, matching the known-working local configuration.
+Ubuntu 22.04's Eigen 3.4 remains available to other software. Eigen 3.4 cannot
+be used for this old fork because both Eigen 3.4 and the fork declare
+`Eigen::Vector3` with incompatible meanings. The definition passes
+`EIGEN_CFLAGS="-isystem /opt/eigen-3.3.9"` to `./configure` and verifies the
+generated MRtrix `config` before compilation starts.
+
 The host compiler remains isolated from the image, but the image has its own
 GCC/G++ 11. NumPy 2.2.6 and scikit-image 0.25.2 are installed from prebuilt
 Python 3.11 manylinux wheels with `--only-binary=:all:` to keep the Python
@@ -49,13 +57,33 @@ FreeSurfer alone is several gigabytes. Build it in a location with ample
 temporary and cache space:
 
 ```bash
-export APPTAINER_TMPDIR=/path/with/at-least-40GB-free
-export APPTAINER_CACHEDIR=/path/with/at-least-20GB-free
-apptainer build diffusion.sif diffusion.def
+export BUILD_TMPDIR=/path/with/at-least-40GB-free
+export BUILD_CACHEDIR=/path/with/at-least-20GB-free
+bash build_diffusion_image.sh
 ```
 
-With SingularityCE, use `SINGULARITY_TMPDIR`, `SINGULARITY_CACHEDIR`, and
-`singularity build` instead.
+The wrapper detects SingularityCE or Apptainer and writes the complete
+stdout/stderr stream to a timestamped file under `build-logs/`. It enables
+`--no-cleanup` when available and also sets the corresponding
+`SINGULARITY_NOCLEANUP` or `APPTAINER_NOCLEANUP` variable, and returns the
+original non-zero build status. When run as a non-root user it
+adds `--fakeroot`; this requires fakeroot/subordinate-ID support to be enabled
+by the cluster administrator. After a failure,
+search the end of the log for the retained bundle location:
+
+```bash
+tail -n 100 build-logs/diffusion-build-*.log
+grep -Ei 'bundle|build-temp|tmp' build-logs/diffusion-build-*.log
+```
+
+Singularity builds the definition's `%post` as one transaction. A retained
+failed bundle allows inspection of the filesystem at the point of failure, but
+it is not a supported automatic restart checkpoint. Re-running the wrapper
+starts the definition again, while downloads already held in the runtime cache
+can be reused. True resumable installation requires splitting the definition
+into separately built intermediate images (for example, Ubuntu/FreeSurfer,
+then FSL, then MRtrix/HD-BET) and using each completed SIF as the next build's
+base.
 
 The definition targets Linux x86-64. HD-BET is configured for CPU inference,
 which matches the current pipeline invocation and avoids coupling the image to

@@ -137,7 +137,8 @@ This is a BIDS-Derivatives dataset, not a raw BIDS dataset. The archives contain
 outputs from the HCP minimal preprocessing and BEDPOSTX pipelines. Their complete
 uncompressed contents are retained under sourcedata/hcp/sub-<label>. The
 subject-level anat and dwi files are hard links to selected HCP-preprocessed
-images, so deleting or modifying either linked pathname affects the same data.
+images. They occupy no additional payload space. Modifying a linked file changes
+the shared data; removing one pathname does not remove the other link.
 
 The DWI series has already undergone HCP preprocessing, including correction and
 concatenation. A single raw acquisition PhaseEncodingDirection therefore is not
