@@ -26,6 +26,7 @@ source "${PIPELINE_ROOT}/scripts/paths_config.sh"
 subject_dir=$1
 subject_id=$(basename "$subject_dir")
 echo "Job Doing $subject_id"
+echo "Model: MSMT-CSD"
 echo "Current working directory: $(pwd)"
 
 wm_fod="${subject_id}_model-msmt_desc-normalized_fod-wm.mif"

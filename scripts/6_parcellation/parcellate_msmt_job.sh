@@ -27,6 +27,7 @@ export SUBJECTS_DIR="${SUBJECTS_DIR:-${FREESURFER_SUBJECTS_DIR}}"
 subject_dir=$1
 subject_folder=$(basename "$subject_dir")
 echo "Job Doing $subject_folder"
+echo "Model: MSMT-CSD"
 echo "Current working directory: $(pwd)"
 
 sift_weights="${subject_folder}_model-msmt_sift2-weights.txt"
