@@ -60,8 +60,8 @@ PREPROC_DWI_MIF="${SUBJECT_NAME}_desc-preproc_dwi.mif"
 PREPROC_DWI_NII="${SUBJECT_NAME}_desc-preproc_dwi.nii.gz"
 PREPROC_BVAL="${SUBJECT_NAME}_desc-preproc_dwi.bval"
 PREPROC_BVEC="${SUBJECT_NAME}_desc-preproc_dwi.bvec"
-MASK_NII="${SUBJECT_NAME}_desc-brain_mask.nii.gz"
-MASK_MIF="${SUBJECT_NAME}_desc-brain_mask.mif"
+T1_MASK_NII="${SUBJECT_NAME}_desc-hdbet_T1w_mask.nii.gz"
+T1_MASK_MIF="${SUBJECT_NAME}_desc-hdbet_T1w_mask.mif"
 
 echo "Current working directory: $(pwd)"
 
@@ -167,30 +167,13 @@ echo "$ones" > eddy_indices.txt
 # Convert to NIfTI for eddy
 mrconvert "$input_dwi" Diff_eddy_in.nii.gz -force
 
-# Create brain mask for eddy
-echo "Creating brain mask..."
-# Determine which b0 file exists.
-if [ -f mean_b0_AP.nii.gz ]; then
-    input_b0="mean_b0_AP.nii.gz"
-elif [ -f mean_b0_PA.nii.gz ]; then
-    input_b0="mean_b0_PA.nii.gz"
-else
-    echo "No mean b0 found in $SUBJECT_DIR" >&2
+# Use the T1 mask created before preprocessing without renaming it.
+echo "Loading T1 brain mask..."
+if [ ! -f "$T1_MASK_NII" ]; then
+    echo "  - $T1_MASK_NII not found. Please run 3_extract_brain_mask.sh first."
     exit 1
 fi
-# Extracted f
-if [ ! -f "$MASK_NII" ]; then
-    echo "  - Extracting brain mask from $input_b0..."
-    hdbet_mask="${SUBJECT_NAME}_desc-hdbet_T1w_mask.nii.gz"
-    if [ ! -f "$hdbet_mask" ]; then
-        echo "  - $hdbet_mask not found. Please run 2_extract_brain_mask.sh first."
-        exit 1
-    fi
-    cp "$hdbet_mask" "$MASK_NII"
-else
-    echo "  - Brain mask already exists, skipping extraction."
-fi
-mrconvert "$MASK_NII" "$MASK_MIF" -force
+mrconvert "$T1_MASK_NII" "$T1_MASK_MIF" -force
 
 
 ##############################################
@@ -203,7 +186,7 @@ echo "Step 6: Running eddy correction..."
 if [ ! -f "$PREPROC_DWI_NII" ]; then
     echo "  - Running eddy..."
     eddy --imain=Diff_eddy_in.nii.gz \
-	     --mask="$MASK_NII" \
+	     --mask="$T1_MASK_NII" \
      --acqp=INPUTS/acqparams.txt \
      --index=eddy_indices.txt \
      --bvecs="$BVEC_FILE" \
@@ -242,7 +225,7 @@ echo "Step 8: Computing FA map..."
 
 # Compute tensor
 dwi2tensor "$PREPROC_DWI_MIF" "${SUBJECT_NAME}_model-dti_tensor.mif" \
-    -mask "$MASK_MIF" -force
+    -mask "$T1_MASK_MIF" -force
 
 # Extract FA
 tensor2metric "${SUBJECT_NAME}_model-dti_tensor.mif" \

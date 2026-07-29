@@ -6,12 +6,12 @@
 #SBATCH --mail-user=ivan.mindlin@icm-institute.org
 #SBATCH --mail-type=ALL
 
-module load python/3.8
+module load singularity
 
-PIPELINE_ROOT=$2
+PIPELINE_ROOT="$2"
 source "${PIPELINE_ROOT}/scripts/paths_config.sh"
 
-subject_dir=$1
+subject_dir="$1"
 subject=$(basename "$subject_dir")
 t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
     -name "${subject}*_T1w.nii.gz" -print -quit 2>/dev/null)
@@ -23,6 +23,12 @@ fi
 
 echo "Job Doing $subject"
 echo "Current working directory: $(pwd)"
-hd-bet -i "$t1_file" \
-    -o "${subject}_desc-hdbet_T1w.nii.gz" \
+bids_dir=$(readlink -f "$BIDS_ROOT")
+t1_name=$(basename "$t1_file")
+
+singularity exec \
+    --bind "${bids_dir}:/bids" \
+    "${PIPELINE_ROOT}/diffusion_image.sif" \
+    hd-bet -i "/bids/${subject}/anat/${t1_name}" \
+    -o "/bids/${subject}/dwi/${subject}_desc-hdbet_T1w.nii.gz" \
     -device cpu --disable_tta
