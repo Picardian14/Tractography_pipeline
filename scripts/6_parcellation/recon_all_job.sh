@@ -22,7 +22,11 @@ source "${PIPELINE_ROOT}/scripts/paths_config.sh"
 
 subject_dir=$1
 subject_id=$(basename "$subject_dir")
-t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f -name "${subject_id}*_T1w.nii.gz" -print -quit)
+t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
+    -name "${subject_id}*_T1w.nii.gz" \
+    ! -name "${subject_id}_desc-hdbet_T1w.nii.gz" \
+    ! -name "${subject_id}_desc-hdbet_T1w_mask.nii.gz" \
+    -print -quit)
 echo "Job Doing $subject_id"
 export SUBJECTS_DIR="${SUBJECTS_DIR:-${FREESURFER_SUBJECTS_DIR}}"
 # If the subject folder in SUBJECTS_DIR does not exist, run recon-all.

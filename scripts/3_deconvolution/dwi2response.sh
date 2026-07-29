@@ -26,7 +26,7 @@ subject=$(basename "$subject_dir")
 
 mrconvert ${subject}_desc-preproc_dwi.nii.gz ${subject}_desc-preproc_dwi.mif -fslgrad ${subject}_desc-preproc_dwi.bvec ${subject}_desc-preproc_dwi.bval -force -force 
 if [ ! -f "${subject}_desc-resampled_mask.mif" ]; then
-    mrconvert "${subject}_desc-hdbet_T1w_mask.nii.gz" \
+    mrconvert "${subject_dir}/anat/${subject}_desc-hdbet_T1w_mask.nii.gz" \
         "${subject}_desc-hdbet_T1w_mask.mif" -force
     mrtransform "${subject}_desc-hdbet_T1w_mask.mif" \
         -template "${subject}_desc-preproc_dwi.mif" \

@@ -31,7 +31,11 @@ for subject_dir in "$BIDS_DATASET"/sub-*; do
             continue
         fi
         subject_name=$(basename "$subject_dir")
-        t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f -name "${subject_name}*_T1w.nii.gz" -print -quit 2>/dev/null)
+        t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
+            -name "${subject_name}*_T1w.nii.gz" \
+            ! -name "${subject_name}_desc-hdbet_T1w.nii.gz" \
+            ! -name "${subject_name}_desc-hdbet_T1w_mask.nii.gz" \
+            -print -quit 2>/dev/null)
 	        dwi_file=$(find "$subject_dir/dwi" -maxdepth 1 -type f \
 	            -name "${subject_name}*_dwi.nii.gz" \
 	            ! -name "${subject_name}*_desc-preproc_dwi.nii.gz" \

@@ -27,18 +27,20 @@ for subject_dir in /bids/sub-*; do
     fi
 
     subject=$(basename "$subject_dir")
-    dwi_dir="$subject_dir/dwi"
+    anat_dir="$subject_dir/anat"
     t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
-        -name "${subject}*_T1w.nii.gz" -print -quit 2>/dev/null)
+        -name "${subject}*_T1w.nii.gz" \
+        ! -name "${subject}_desc-hdbet_T1w.nii.gz" \
+        ! -name "${subject}_desc-hdbet_T1w_mask.nii.gz" \
+        -print -quit 2>/dev/null)
 
     if [ -z "$t1_file" ]; then
         echo "No ${subject}*_T1w.nii.gz found in $subject_dir/anat" >&2
         continue
     fi
 
-    mkdir -p "$dwi_dir"
     echo "Applying HD-BET locally to $subject"
-    cd "$dwi_dir" && hd-bet -i "$t1_file" \
+    cd "$anat_dir" && hd-bet -i "$t1_file" \
             -o "${subject}_desc-hdbet_T1w.nii.gz" \
             -device cpu --disable_tta
 done

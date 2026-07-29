@@ -27,7 +27,11 @@ subject_dir=$1
 subject_id=$(basename "$subject_dir")
 anat_dir="$subject_dir/anat"
 dwi_dir="$subject_dir/dwi"
-t1_file=$(find "$anat_dir" -maxdepth 1 -type f -name "${subject_id}*_T1w.nii.gz" -print -quit)
+t1_file=$(find "$anat_dir" -maxdepth 1 -type f \
+    -name "${subject_id}*_T1w.nii.gz" \
+    ! -name "${subject_id}_desc-hdbet_T1w.nii.gz" \
+    ! -name "${subject_id}_desc-hdbet_T1w_mask.nii.gz" \
+    -print -quit)
 echo "Job Doing $subject_id"
 echo "Current working directory: $(pwd)"
 

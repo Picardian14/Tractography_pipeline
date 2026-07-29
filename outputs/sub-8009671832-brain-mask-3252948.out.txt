@@ -1,0 +1,20 @@
+Job Doing sub-8009671832
+Current working directory: /network/iss/cohen/data/Ivan/Nifti_DoC_Test/sub-8009671832/dwi
+
+########################
+If you are using hd-bet, please cite the following papers:
+
+Isensee F, Schell M, Tursunova I, Brugnara G, Bonekamp D, Neuberger U, Wick A, Schlemmer HP, Heiland S, Wick W, Bendszus M, Maier-Hein KH, Kickingereder P. Automated brain extraction of multi-sequence MRI using artificial neural networks. arXiv preprint arXiv:1901.11341, 2019.
+
+Isensee, F., Jaeger, P. F., Kohl, S. A., Petersen, J., & Maier-Hein, K. H. (2021). nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation. Nature methods, 18(2), 203-211.
+########################
+
+perform_everything_on_device=True is only supported for cuda devices! Setting this to False
+There are 1 cases in the source folder
+I am process 0 out of 1 (max process ID is 0, we start counting with 0!)
+There are 1 cases that I would like to predict
+
+Predicting sub-8009671832_desc-hdbet_T1w_bet.nii.gz:
+perform_everything_on_device: False
+sending off prediction to background worker for resampling and export
+done with sub-8009671832_desc-hdbet_T1w_bet.nii.gz

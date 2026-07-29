@@ -40,7 +40,11 @@ echo "=========================================="
 
 ANAT_DIR="$SUBJECT_DIR/anat"
 DWI_DIR="$SUBJECT_DIR/dwi"
-T1_FILE=$(find "$ANAT_DIR" -maxdepth 1 -type f -name "${SUBJECT_NAME}*_T1w.nii.gz" -print -quit 2>/dev/null)
+T1_FILE=$(find "$ANAT_DIR" -maxdepth 1 -type f \
+    -name "${SUBJECT_NAME}*_T1w.nii.gz" \
+    ! -name "${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" \
+    ! -name "${SUBJECT_NAME}_desc-hdbet_T1w_mask.nii.gz" \
+    -print -quit 2>/dev/null)
 DWI_FILE=$(find "$DWI_DIR" -maxdepth 1 -type f \
     -name "${SUBJECT_NAME}*_dwi.nii.gz" \
     ! -name "${SUBJECT_NAME}*_desc-preproc_dwi.nii.gz" \
@@ -60,7 +64,8 @@ PREPROC_DWI_MIF="${SUBJECT_NAME}_desc-preproc_dwi.mif"
 PREPROC_DWI_NII="${SUBJECT_NAME}_desc-preproc_dwi.nii.gz"
 PREPROC_BVAL="${SUBJECT_NAME}_desc-preproc_dwi.bval"
 PREPROC_BVEC="${SUBJECT_NAME}_desc-preproc_dwi.bvec"
-T1_MASK_NII="${SUBJECT_NAME}_desc-hdbet_T1w_mask.nii.gz"
+T1_BRAIN_NII="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz"
+T1_MASK_NII="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w_mask.nii.gz"
 T1_MASK_MIF="${SUBJECT_NAME}_desc-hdbet_T1w_mask.mif"
 
 echo "Current working directory: $(pwd)"
@@ -284,7 +289,7 @@ echo ""
 echo "Step 9B: Registration via T1 using ANTs..."
 
 # Check if T1_HDbet exists
-if [ -f "${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" ]; then
+if [ -f "$T1_BRAIN_NII" ]; then
     
     # Step 9b-i: Register T1 to MNI using ANTs
     # run if file does not exist
@@ -292,7 +297,7 @@ if [ -f "${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" ]; then
          echo "  Registering T1 to MNI..."
         antsRegistrationSyNQuick.sh -d 3 \
             -f "$MNI_TEMPLATE" \
-            -m "${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" \
+            -m "$T1_BRAIN_NII" \
             -o T1_to_MNI_ \
             -t a
         
@@ -306,7 +311,7 @@ if [ -f "${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" ]; then
         
         echo "  Registering b0 to T1..."
         antsRegistrationSyNQuick.sh -d 3 \
-            -f "${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" \
+            -f "$T1_BRAIN_NII" \
             -m mean_b0_final.nii.gz \
             -o b0_to_T1_ \
             -t r
@@ -330,7 +335,7 @@ if [ -f "${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" ]; then
     echo "  - FA_in_MNI_via_T1.nii (ANTs via T1 registration)"
     echo "  - T1_in_MNI_Warped.nii.gz (warped T1 for verification)"
 else
-    echo "  WARNING: ${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz not found. Skipping ANTs via T1 option."
+    echo "  WARNING: $T1_BRAIN_NII not found. Skipping ANTs via T1 option."
 fi
 
 echo ""
