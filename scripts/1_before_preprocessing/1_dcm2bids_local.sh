@@ -4,17 +4,31 @@
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../paths_config.sh"
-echo "Running dcm2bids locally on all ZIP files in ${RAW_DICOM_DIR}"
-folder="${RAW_DICOM_DIR}"
+
+folder="$(readlink -f "${RAW_DICOM_DIR}")"
 converted_data_dir="${DCM2BIDS_OUTPUT_DIR:-${BIDS_ROOT}}"
 mkdir -p "$converted_data_dir"
+converted_data_dir="$(readlink -f "$converted_data_dir")"
 
-for file in "$folder"/*.zip; do
+if [ ! -d "$folder" ]; then
+    echo "DICOM directory is not accessible: $folder" >&2
+    exit 1
+fi
+
+# Resolve the host paths and mount them at stable paths in the container.
+singularity exec \
+    --bind "${folder}:/dicom:ro" \
+    --bind "${converted_data_dir}:/output" \
+    "${PIPELINE_ROOT}/diffusion_image.sif" \
+    bash <<'EOF'
+echo "Running dcm2bids locally on all ZIP files in /dicom"
+
+for file in /dicom/*.zip; do
     [ -e "$file" ] || continue
 
     filename=$(basename "$file" .zip)
     subject_label="${filename#sub-}"
-    subject_output="${converted_data_dir}/tmp_dcm2bids/sub-${subject_label}"
+    subject_output="/output/tmp_dcm2bids/sub-${subject_label}"
     mkdir -p "$subject_output"
 
     echo "Converting sub-${subject_label} locally"
@@ -23,3 +37,4 @@ for file in "$folder"/*.zip; do
         dcm2bids_helper -d "$file" -o "$subject_output"
     )
 done
+EOF
