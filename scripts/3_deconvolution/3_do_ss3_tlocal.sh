@@ -9,6 +9,7 @@ BIDS_DATASET="${BIDS_DATASET:-${BIDS_ROOT}}"
 cd "$BIDS_DATASET" || exit 1
 for subject_dir in sub-*/; do
         [ -d "$subject_dir/dwi" ] || continue
+        subject_start_time=$SECONDS
         echo "Doing $subject_dir"
 		subject=$(basename "$subject_dir")
 		cd "$subject_dir/dwi" || continue
@@ -23,4 +24,10 @@ for subject_dir in sub-*/; do
 			fi
         
 		cd "$BIDS_DATASET" || exit 1
+        subject_elapsed=$((SECONDS - subject_start_time))
+        printf "Processing time for %s: %02d:%02d:%02d (HH:MM:SS)\n" \
+            "$subject" \
+            "$((subject_elapsed / 3600))" \
+            "$(((subject_elapsed % 3600) / 60))" \
+            "$((subject_elapsed % 60))"
 done

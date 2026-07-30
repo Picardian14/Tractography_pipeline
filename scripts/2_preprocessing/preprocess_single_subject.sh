@@ -66,8 +66,8 @@ PREPROC_DWI_NII="${SUBJECT_NAME}_desc-preproc_dwi.nii.gz"
 PREPROC_BVAL="${SUBJECT_NAME}_desc-preproc_dwi.bval"
 PREPROC_BVEC="${SUBJECT_NAME}_desc-preproc_dwi.bvec"
 T1_BRAIN_NII="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz"
-T1_MASK_NII="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w_mask.nii.gz"
-T1_MASK_MIF="${SUBJECT_NAME}_desc-hdbet_T1w_mask.mif"
+T1_MASK_NII="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w_bet.nii.gz"
+T1_MASK_MIF="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w_bet.mif"
 
 echo "Current working directory: $(pwd)"
 
@@ -232,6 +232,12 @@ if [ ! -f "$PREPROC_DWI_NII" ]; then
 else
     echo "  - Eddy outputs already exist, skipping eddy step."
 fi
+
+totalSlices=`mrinfo Diff.mif | grep Dimensions | awk '{print $6 * $8}'`
+totalOutliers=`awk '{ for(i=1;i<=NF;i++)sum+=$i } END { print sum }' eddy_unwarped_images.eddy_outlier_map`
+echo "If the following number is greater than 10, you may have to discard this subject because of too much motion or corrupted slices"
+echo "!!!! Number of outliers from eddy !!!!:"
+echo "scale=5; ($totalOutliers / $totalSlices * 100)/1" | bc | tee percentageOutliers.txt
 
 
 # Convert back to MRtrix format

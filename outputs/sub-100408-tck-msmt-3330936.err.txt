@@ -14,3 +14,5 @@ tckgen: [  1%]   391691 seeds,   389614 streamlines,   191643 selected
 tckgen: [  3%]   785751 seeds,   781453 streamlines,   384189 selected
 tckgen: [  7%]  1572801 seeds,  1564163 streamlines,   768815 selected
 tckgen: [ 15%]  3153161 seeds,  3135960 streamlines,  1542044 selected
+tckgen: [ 30%]  6321261 seeds,  6286810 streamlines,  3091193 selected
+tckgen: [ 61%] 12656821 seeds, 12587820 streamlines,  6194243 selected

@@ -1,9 +1,0 @@
-/tmp/matplotlib is not a writable directory
-Matplotlib created a temporary cache directory at /tmp/matplotlib-kkv8t2hq because there was an issue with the default path ({configdir}); it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
-  0%|          | 0/10 [00:00<?, ?it/s] 10%|█         | 1/10 [00:12<01:54, 12.76s/it] 20%|██        | 2/10 [00:25<01:40, 12.59s/it] 30%|███       | 3/10 [00:37<01:27, 12.51s/it] 40%|████      | 4/10 [00:50<01:14, 12.47s/it] 50%|█████     | 5/10 [01:02<01:02, 12.45s/it] 60%|██████    | 6/10 [01:14<00:49, 12.43s/it] 70%|███████   | 7/10 [01:27<00:37, 12.45s/it] 80%|████████  | 8/10 [01:39<00:24, 12.43s/it] 90%|█████████ | 9/10 [01:52<00:12, 12.45s/it]100%|██████████| 10/10 [02:04<00:00, 12.44s/it]100%|██████████| 10/10 [02:04<00:00, 12.47s/it]
-mrconvert: [WARNING] existing output files will be overwritten
-mrconvert: uncompressing image "/network/iss/home/ivan.mindlin/Repos/Tractography_pipeline/doc_data/sub-8009671832/dwi/sub-8009671832_dwi.nii.gz"... [==================================================]
-mrconvert: copying from "/network/i...i/sub-8009671832_dwi.nii.gz" to "Diff.mif"... [==================================================]
-dwidenoise: [WARNING] existing output files will be overwritten
-dwidenoise: preloading data for "Diff.mif"... [==================================================]
-dwidenoise: running MP-PCA denoising... [=

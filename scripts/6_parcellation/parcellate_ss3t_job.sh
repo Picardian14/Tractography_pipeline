@@ -4,6 +4,17 @@
 #SBATCH --mail-user=ivan.mindlin@icm-institute.org
 #SBATCH --mail-type=ALL
 
+JOB_START_TIME=$SECONDS
+report_processing_time() {
+    local exit_status=$?
+    local elapsed=$((SECONDS - JOB_START_TIME))
+    printf "Processing time for %s: %02d:%02d:%02d (HH:MM:SS; exit status: %d)\n" \
+        "${subject_folder:-$(basename "$0")}" \
+        "$((elapsed / 3600))" "$(((elapsed % 3600) / 60))" "$((elapsed % 60))" \
+        "$exit_status"
+}
+trap report_processing_time EXIT
+
 ml FreeSurfer/6.0.0
 ml FSL
 ml MRtrix
