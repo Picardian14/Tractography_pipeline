@@ -4,7 +4,7 @@
 # PATH MACRO: edit ../paths_config.sh once, or override variables here.
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+source "${SCRIPT_DIR}/../paths_config.sh" $1
 SUBJECTS_INPUT_DIR="${SUBJECTS_INPUT_DIR:-${BIDS_ROOT}}"
 output="${OUTPUT_DIR}"
 brain_mask_job="${BRAIN_MASK_JOB:-${SCRIPT_DIR}/extract_brain_mask_job.sh}"

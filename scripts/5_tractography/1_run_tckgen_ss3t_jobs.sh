@@ -3,7 +3,7 @@
 # Submit one SS3T tractography job per BIDS subject.
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+source "${SCRIPT_DIR}/../paths_config.sh" $1
 output="${OUTPUT_DIR}"
 tckgen_job="${TCKGEN_SS3T_JOB:-${SCRIPT_DIR}/tckgen_ss3t_job.sh}"
 data_folder="${BIDS_ROOT}"

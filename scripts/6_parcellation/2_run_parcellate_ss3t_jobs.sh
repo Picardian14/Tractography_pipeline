@@ -3,7 +3,7 @@
 # Submit one SS3T parcellation/connectome job per BIDS subject.
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+source "${SCRIPT_DIR}/../paths_config.sh" $1
 output="${OUTPUT_DIR}"
 parcellate_job="${PARCELLATE_SS3T_JOB:-${SCRIPT_DIR}/parcellate_ss3t_job.sh}"
 data_folder="${BIDS_ROOT}"

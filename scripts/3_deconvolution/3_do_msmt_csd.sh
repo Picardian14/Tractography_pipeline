@@ -3,7 +3,7 @@
 # PATH MACRO: edit ../paths_config.sh once, or override variables here.
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+source "${SCRIPT_DIR}/../paths_config.sh" $1
 output="${OUTPUT_DIR}"
 msmt_csd_job="${MSMT_CSD_JOB:-${SCRIPT_DIR}/msmt_csd.sh}"
 

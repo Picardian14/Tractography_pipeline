@@ -1,0 +1,16 @@
+tckgen: [WARNING] existing output files will be overwritten
+tckgen: [  0%]        1 seeds,        1 streamlines,        0 selected
+tckgen: [  0%]        3 seeds,        3 streamlines,        1 selected
+tckgen: [  0%]        4 seeds,        4 streamlines,        1 selected
+tckgen: [  0%]       61 seeds,       61 streamlines,       26 selected
+tckgen: [  0%]      821 seeds,      815 streamlines,      407 selected
+tckgen: [  0%]     3851 seeds,     3824 streamlines,     1892 selected
+tckgen: [  0%]    10511 seeds,    10449 streamlines,     5042 selected
+tckgen: [  0%]    23801 seeds,    23653 streamlines,    11323 selected
+tckgen: [  0%]    50861 seeds,    50552 streamlines,    24291 selected
+tckgen: [  0%]   105191 seeds,   104614 streamlines,    50252 selected
+tckgen: [  1%]   214421 seeds,   213296 streamlines,   102223 selected
+tckgen: [  2%]   433511 seeds,   431228 streamlines,   206567 selected
+tckgen: [  4%]   869161 seeds,   864627 streamlines,   414360 selected
+tckgen: [  8%]  1736551 seeds,  1727531 streamlines,   828091 selected
+tckgen: [ 16%]  3487621 seeds,  3469503 streamlines,  1663650 selected

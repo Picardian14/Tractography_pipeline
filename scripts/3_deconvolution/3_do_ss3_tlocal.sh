@@ -4,7 +4,7 @@
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_ROOT="${1:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-source "${PIPELINE_ROOT}/scripts/paths_config.sh"
+source "${PIPELINE_ROOT}/scripts/paths_config.sh" $1
 BIDS_DATASET="${BIDS_DATASET:-${BIDS_ROOT}}"
 cd "$BIDS_DATASET" || exit 1
 for subject_dir in sub-*/; do

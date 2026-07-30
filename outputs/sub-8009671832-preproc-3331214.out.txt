@@ -1,5 +1,11 @@
-Job Doing sub-8009780652
-Current working directory: /network/iss/cohen/data/Ivan/Nifti_DoC_Test/sub-8009780652/dwi
+==========================================
+Processing subject: sub-8009671832
+Working directory: /network/iss/home/ivan.mindlin/Repos/Tractography_pipeline/doc_data/sub-8009671832
+==========================================
+Current working directory: /network/iss/cohen/data/Ivan/Nifti_DoC_Test/sub-8009671832/dwi
+Input info saved to sub-8009671832_desc-preprocessing_info.txt
+
+Step 1: Extracting the T1 brain mask with HD-BET...
 
 ########################
 If you are using hd-bet, please cite the following papers:
@@ -14,7 +20,9 @@ There are 1 cases in the source folder
 I am process 0 out of 1 (max process ID is 0, we start counting with 0!)
 There are 1 cases that I would like to predict
 
-Predicting sub-8009780652_desc-hdbet_T1w_bet.nii.gz:
+Predicting sub-8009671832_desc-hdbet_T1w_bet.nii.gz:
 perform_everything_on_device: False
 sending off prediction to background worker for resampling and export
-done with sub-8009780652_desc-hdbet_T1w_bet.nii.gz
+done with sub-8009671832_desc-hdbet_T1w_bet.nii.gz
+
+Step 2: Converting to MRtrix format and denoising...

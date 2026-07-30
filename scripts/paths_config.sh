@@ -13,7 +13,10 @@ PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 # BIDS ROOT is where the BIDS dataset is located. It is set as a subfolder of PIPELINE_ROOT by default.
 # I recommend you put this in /cohen/data and make a soft link in this folder. 
 #####
-BIDS_ROOT="${BIDS_ROOT:-${PIPELINE_ROOT}/doc_data/}" # BIDS root is where the BIDS dataset is located.
+# take folder name as input, or default doc_data
+FOLDER_NAME="${1:-doc_data}"
+BIDS_ROOT="${BIDS_ROOT:-${PIPELINE_ROOT}/${FOLDER_NAME}}" # B
+#BIDS_ROOT="${BIDS_ROOT:-${PIPELINE_ROOT}/doc_data/}" # BIDS root is where the BIDS dataset is located.
 DCM2BIDS_OUTPUT_DIR="${DCM2BIDS_OUTPUT_DIR:-${PIPELINE_ROOT}/tmp_dcm2bids}" # temporary folder for dcm2bids outputs
 
 # Backwards-compatible alias. New scripts use BIDS_ROOT directly.
@@ -23,9 +26,6 @@ ATLAS_ROOT="${ATLAS_ROOT:-${PIPELINE_ROOT}/atlas_data}" # to keep parcellation f
 FREESURFER_SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR:-${PIPELINE_ROOT}/freesurfer}" # outputs from recon-all
 MNI_TEMPLATE="${MNI_TEMPLATE:-${PIPELINE_ROOT}/MNI152_T1_2mm.nii.gz}" # MNI template for registration
 SYNB0_SIF="${SYNB0_SIF:-${PIPELINE_ROOT}/synb0-disco_v3.0.sif}" # Singularity image for synb0-disco to do reverse phase encoding distortion correction
-SIEMENS_ACQPARAMS="${SIEMENS_ACQPARAMS:-${PIPELINE_ROOT}/acqparams_siemens.txt}" # this are the parameters neccesary for Eddy
-GE_ACQPARAMS="${GE_ACQPARAMS:-${PIPELINE_ROOT}/acqparams_GE.txt}" # They are scanner specific. 
 export PIPELINE_ROOT DATA_ROOT BIDS_ROOT WORKBENCH_DIR RAW_DICOM_DIR OUTPUT_DIR
 export ATLAS_ROOT FREESURFER_SUBJECTS_DIR MNI_TEMPLATE SYNB0_SIF
-export SIEMENS_ACQPARAMS GE_ACQPARAMS
 export DCM2BIDS_OUTPUT_DIR

@@ -16,7 +16,7 @@ study data under `data/`. The main settings are:
 - `OUTPUT_DIR`: Slurm logs
 - `ATLAS_ROOT`: atlas files
 - `FREESURFER_SUBJECTS_DIR`: FreeSurfer outputs
-- `MNI_TEMPLATE`, `SYNB0_SIF`, and scanner acquisition-parameter files
+- `MNI_TEMPLATE` and `SYNB0_SIF`
 
 Settings can be overridden for one command without editing the file:
 
@@ -28,7 +28,7 @@ bash scripts/3_deconvolution/2_responsemean.sh
 
 Input files use standard BIDS names. Each subject must provide one
 `sub-<label>_T1w.nii.gz` under `anat/` and one matching
-`sub-<label>_dwi.nii.gz`, `.bval`, and `.bvec` set under `dwi/`. Additional
+`sub-<label>_dwi.nii.gz`, `.json`, `.bval`, and `.bvec` set under `dwi/`. Additional
 BIDS entities such as `ses-`, `acq-`, and `run-` are accepted, but the current
 pipeline processes the first matching T1w and DWI series for each subject.
 
@@ -36,5 +36,5 @@ Anatomical inputs remain under `anat/`. Diffusion processing, registration,
 tractography, and connectome products are written under `dwi/`. FreeSurfer
 outputs remain in `FREESURFER_SUBJECTS_DIR`.
 
-Set `SCANNER_TYPE=GE` or `SCANNER_TYPE=siemens` when submitting preprocessing
-jobs. It defaults to `GE`.
+The preprocessing script reads `PhaseEncodingDirection` and `TotalReadoutTime`
+from each DWI JSON sidecar.

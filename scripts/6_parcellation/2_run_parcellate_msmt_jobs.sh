@@ -4,7 +4,7 @@
 # PATH MACRO: edit ../paths_config.sh once, or override variables here.
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+source "${SCRIPT_DIR}/../paths_config.sh" $1
 output="${OUTPUT_DIR}"
 parcellate_job="${PARCELLATE_MSMT_JOB:-${SCRIPT_DIR}/parcellate_msmt_job.sh}"
 data_folder="${BIDS_ROOT}"

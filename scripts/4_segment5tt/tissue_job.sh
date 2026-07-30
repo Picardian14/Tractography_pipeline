@@ -37,8 +37,8 @@ echo "Current working directory: $(pwd)"
 
 if [ ! -f "${subject_id}_desc-coreg_5tt.mif" ]; then
     echo "  - Generating 5tt coregistered to DWI..."
-    mrconvert "$t1_file" "${subject_id}_desc-raw_T1w.mif" -force
-    5ttgen fsl "${subject_id}_desc-raw_T1w.mif" "${subject_id}_desc-nocoreg_5tt.mif" -force
+    mrconvert "$t1_file" "${subject_id}_T1w.mif" -force
+    5ttgen fsl "${subject_id}_T1w.mif" "${subject_id}_desc-nocoreg_5tt.mif" -force
     dwiextract "${subject_id}_desc-preproc_dwi.mif" - -bzero | \
         mrmath - mean "${subject_id}_desc-mean_b0.mif" -axis 3 -force
     mrconvert "${subject_id}_desc-mean_b0.mif" "${subject_id}_desc-mean_b0.nii.gz" -force

@@ -3,7 +3,7 @@
 # Run HD-BET locally, one BIDS subject at a time.
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+source "${SCRIPT_DIR}/../paths_config.sh" $1
 
 subjects_input_dir="${SUBJECTS_INPUT_DIR:-${BIDS_ROOT}}"
 subjects_input_dir="$(readlink -f "$subjects_input_dir")"

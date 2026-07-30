@@ -4,7 +4,7 @@
 # PATH MACRO: edit ../paths_config.sh once, or override variables here.
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+source "${SCRIPT_DIR}/../paths_config.sh" $1
 
 folder="$RAW_DICOM_DIR"
 converted_data_dir="${DCM2BIDS_OUTPUT_DIR:-${BIDS_ROOT}}"

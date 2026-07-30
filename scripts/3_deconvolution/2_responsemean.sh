@@ -5,7 +5,7 @@
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_ROOT="${1:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-source "${PIPELINE_ROOT}/scripts/paths_config.sh"
+source "${PIPELINE_ROOT}/scripts/paths_config.sh" $1
 RESPONSE_DATA_DIR="${RESPONSE_DATA_DIR:-${BIDS_ROOT}}"
 cd "$RESPONSE_DATA_DIR" || exit 1
 

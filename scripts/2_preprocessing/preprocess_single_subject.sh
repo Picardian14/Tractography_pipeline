@@ -8,9 +8,10 @@
 #SBATCH --mail-user=ivan.mindlin@icm-institute.org
 #SBATCH --mail-type=FAIL,END
 
-# Single subject preprocessing 
-# New structure supports different scanner types
-# Usage: sbatch preprocess_single_subject.sh /bids/sub-ID SCANNER PIPELINE_ROOT
+# Single subject preprocessing
+# Usage: sbatch preprocess_single_subject.sh /bids/sub-ID PIPELINE_ROOT
+
+PREPROCESSING_START_TIME=$(date +%s)
 
 module load MRtrix
 module load FSL
@@ -23,18 +24,16 @@ module load singularity
 # Note: Slurm #SBATCH paths cannot expand shell variables; submitter scripts set
 # job output paths explicitly when site-specific absolute paths are needed.
 ###############################################################################
-PIPELINE_ROOT=$3
+PIPELINE_ROOT=$2
 source "${PIPELINE_ROOT}/scripts/paths_config.sh"
 
 # Get parameters
 SUBJECT_DIR=$1           # Full path to a BIDS sub-* directory
-SCANNER_TYPE=$2          # Scanner type (GE, siemens)
 SUBJECT_NAME=$(basename "$SUBJECT_DIR")
 
 
 echo "=========================================="
 echo "Processing subject: $SUBJECT_NAME"
-echo "Scanner: $SCANNER_TYPE"
 echo "Working directory: $SUBJECT_DIR"
 echo "=========================================="
 
@@ -50,15 +49,17 @@ DWI_FILE=$(find "$DWI_DIR" -maxdepth 1 -type f \
     ! -name "${SUBJECT_NAME}*_desc-preproc_dwi.nii.gz" \
     -print -quit 2>/dev/null)
 DWI_STEM="${DWI_FILE%.nii.gz}"
+DWI_JSON="${DWI_STEM}.json"
 BVAL_FILE="${DWI_STEM}.bval"
 BVEC_FILE="${DWI_STEM}.bvec"
 
-for required_file in "$T1_FILE" "$DWI_FILE" "$BVAL_FILE" "$BVEC_FILE"; do
+for required_file in "$T1_FILE" "$DWI_FILE" "$DWI_JSON" "$BVAL_FILE" "$BVEC_FILE"; do
     if [ -z "$required_file" ] || [ ! -f "$required_file" ]; then
         echo "Missing required BIDS input: $required_file" >&2
         exit 1
     fi
 done
+
 
 PREPROC_DWI_MIF="${SUBJECT_NAME}_desc-preproc_dwi.mif"
 PREPROC_DWI_NII="${SUBJECT_NAME}_desc-preproc_dwi.nii.gz"
@@ -70,15 +71,42 @@ T1_MASK_MIF="${SUBJECT_NAME}_desc-hdbet_T1w_mask.mif"
 
 echo "Current working directory: $(pwd)"
 
-# Store scanner type info in a log file for reference
+# Store input info in a log file for reference
 cat > "${SUBJECT_NAME}_desc-preprocessing_info.txt" << EOF
 SUBJECT_NAME: $SUBJECT_NAME
-SCANNER_TYPE: $SCANNER_TYPE
 SUBJECT_DIR: $SUBJECT_DIR
+DWI_JSON: $DWI_JSON
 PROCESSING_DATE: $(date)
 EOF
 
-echo "Scanner info saved to ${SUBJECT_NAME}_desc-preprocessing_info.txt"
+echo "Input info saved to ${SUBJECT_NAME}_desc-preprocessing_info.txt"
+
+##############################################
+# STEP 1: Extract the T1 brain and mask with HD-BET
+##############################################
+echo ""
+echo "Step 1: Extracting the T1 brain mask with HD-BET..."
+
+if [ -f "$T1_BRAIN_NII" ] && [ -f "$T1_MASK_NII" ]; then
+    echo "  - HD-BET outputs already exist, skipping brain extraction."
+else
+    ANAT_BIND_DIR=$(readlink -f "$ANAT_DIR")
+    T1_NAME=$(basename "$T1_FILE")
+
+    singularity exec \
+        --bind "${ANAT_BIND_DIR}:/anat" \
+        "${PIPELINE_ROOT}/diffusion_image.sif" \
+        hd-bet -i "/anat/${T1_NAME}" -o "/anat/${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" --save_bet_mask -device cpu --disable_tta
+    if [ $? -ne 0 ]; then
+        echo "ERROR: HD-BET failed for $SUBJECT_NAME" >&2
+        exit 1
+    fi
+fi
+
+if [ ! -f "$T1_BRAIN_NII" ]; then
+    echo "ERROR: Expected HD-BET outputs were not created for $SUBJECT_NAME" >&2
+    exit 1
+fi
 
 ##############################################
 # STEP 2: Convert to MRtrix and denoise
@@ -109,23 +137,21 @@ echo "Step 3: Preparing synb0-disco inputs..."
 mkdir -p INPUTS OUTPUTS
 #
 ## Create acquisition parameters file
-if [ "$SCANNER_TYPE" == "siemens" ]; then
-    # Siemens: AP direction only
-    cp "$SIEMENS_ACQPARAMS" INPUTS/acqparams.txt
+PHASE_ENCODING_DIRECTION=$(
+    python3 "${PIPELINE_ROOT}/scripts/2_preprocessing/create_acqparams.py" \
+        "$DWI_JSON" INPUTS/acqparams.txt
+) || exit 1
+
+if [ "$PHASE_ENCODING_DIRECTION" = "j-" ]; then
     # Extract mean b0 from AP
     dwiextract Diff_den_gibbs.mif - -bzero -force | mrmath - mean mean_b0_AP.mif -axis 3 -force
     mrconvert mean_b0_AP.mif mean_b0_AP.nii.gz -force
     cp mean_b0_AP.nii.gz INPUTS/b0.nii.gz
-elif [ "$SCANNER_TYPE" == "GE" ]; then
-    # GE: AP direction only, different total readout time
-    cp "$GE_ACQPARAMS" INPUTS/acqparams.txt
+elif [ "$PHASE_ENCODING_DIRECTION" = "j" ]; then
     # Extract mean b0 from PA
     dwiextract Diff_den_gibbs.mif - -bzero -force | mrmath - mean mean_b0_PA.mif -axis 3 -force
     mrconvert mean_b0_PA.mif mean_b0_PA.nii.gz -force
     cp mean_b0_PA.nii.gz INPUTS/b0.nii.gz
-else
-    echo "Unknown scanner type: $SCANNER_TYPE"
-    exit 1
 fi
 #
 #
@@ -157,12 +183,12 @@ echo ""
 echo "Step 5: Preparing for eddy correction..."
 
 # Create eddy indices
-if [ "$SCANNER_TYPE" == "siemens" ]; then
+if [ "$PHASE_ENCODING_DIRECTION" = "j-" ]; then
     input_dwi="Diff_den_gibbs.mif"
-    printf "Using denoised data for Siemens scanner\n"
+    printf "Using denoised data for AP phase encoding\n"
 else
     input_dwi="Diff.mif"
-    printf "Using raw data for GE scanner\n"
+    printf "Using raw data for PA phase encoding\n"
 fi
 output=$(mrinfo "$input_dwi" -size)
 nvolumes=$(echo "$output" | awk '{print $4}')
@@ -172,10 +198,10 @@ echo "$ones" > eddy_indices.txt
 # Convert to NIfTI for eddy
 mrconvert "$input_dwi" Diff_eddy_in.nii.gz -force
 
-# Use the T1 mask created before preprocessing without renaming it.
+# Convert the T1 mask created in step 1 to MRtrix format.
 echo "Loading T1 brain mask..."
 if [ ! -f "$T1_MASK_NII" ]; then
-    echo "  - $T1_MASK_NII not found. Please run 3_extract_brain_mask.sh first."
+    echo "  - $T1_MASK_NII not found. HD-BET step 1 did not produce the mask."
     exit 1
 fi
 mrconvert "$T1_MASK_NII" "$T1_MASK_MIF" -force
@@ -344,10 +370,18 @@ echo "  - mean_b0_in_MNI.nii.gz (check b0-MNI alignment)"
 echo "  - FA_in_MNI_direct.nii (OPTION A: direct b0->MNI)"
 echo "  - FA_in_MNI_via_T1.nii (OPTION B: via T1 using ANTs)"
 
+PREPROCESSING_END_TIME=$(date +%s)
+PREPROCESSING_DURATION=$((PREPROCESSING_END_TIME - PREPROCESSING_START_TIME))
+PREPROCESSING_HOURS=$((PREPROCESSING_DURATION / 3600))
+PREPROCESSING_MINUTES=$(((PREPROCESSING_DURATION % 3600) / 60))
+PREPROCESSING_SECONDS=$((PREPROCESSING_DURATION % 60))
+
 echo ""
 echo "=========================================="
 echo "Subject $SUBJECT_NAME processing complete!"
 echo "End time: $(date)"
+printf "Total preprocessing time: %02d:%02d:%02d (HH:MM:SS)\n" \
+    "$PREPROCESSING_HOURS" "$PREPROCESSING_MINUTES" "$PREPROCESSING_SECONDS"
 echo "FA maps in MNI space:"
 echo "  Option A (direct): $DWI_DIR/FA_in_MNI_direct.nii"
 echo "  Option B (via T1): $DWI_DIR/FA_in_MNI_via_T1.nii"

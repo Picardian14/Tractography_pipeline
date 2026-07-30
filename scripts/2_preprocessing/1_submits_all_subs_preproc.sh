@@ -11,11 +11,10 @@
 ###############################################################################
 # PATH MACRO: edit ../paths_config.sh once, or override variables here.
 ###############################################################################
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" 
+source "${SCRIPT_DIR}/../paths_config.sh" $1
 BIDS_DATASET="${BIDS_DATASET:-${BIDS_ROOT}}"
 PREPROCESS_JOB="${PREPROCESS_JOB:-${SCRIPT_DIR}/preprocess_single_subject.sh}"
-SCANNER_TYPE="${SCANNER_TYPE:-GE}"
 mkdir -p "$OUTPUT_DIR"
 
 echo "=========================================="
@@ -42,14 +41,13 @@ for subject_dir in "$BIDS_DATASET"/sub-*; do
 	            -print -quit 2>/dev/null)
 
         if [ -n "$t1_file" ] && [ -n "$dwi_file" ]; then
-            echo "  Submitting: $subject_name (scanner: $SCANNER_TYPE)"
+            echo "  Submitting: $subject_name"
             sbatch --job-name="preproc-$subject_name" \
                 --chdir="$subject_dir/dwi" \
                 --output="${OUTPUT_DIR}/${subject_name}-preproc-%j.out.txt" \
                 --error="${OUTPUT_DIR}/${subject_name}-preproc-%j.err.txt" \
                 "$PREPROCESS_JOB" \
                 "$subject_dir" \
-                "$SCANNER_TYPE" \
                 "$PIPELINE_ROOT"
             
             ((total_jobs++))
