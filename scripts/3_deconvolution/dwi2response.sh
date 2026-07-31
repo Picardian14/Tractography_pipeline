@@ -43,6 +43,10 @@ if [ ! -f "${subject}_desc-resampled_mask.mif" ]; then
         -template "${subject}_desc-preproc_dwi.mif" \
         -interp nearest "${subject}_desc-resampled_mask.mif" -force
 fi
+#dwiextract Diff_preproc_unbiased.mif - -bzero -force | mrmath - mean meanb0_post_preproc.nii -axis 3 -force
+#flirt -in T1_HDbet.nii.gz -ref meanb0_post_preproc.nii -dof 6 -omat rigid_T1toDWI.mat 			
+#transformconvert rigid_T1toDWI.mat T1_HDbet.nii.gz meanb0_post_preproc.nii flirt_import rigid_T1toDWI.txt -force
+#mrtransform T1_HDbet.nii.gz T1_in_dwi_space.nii.gz -linear rigid_T1toDWI.txt -force
 dwi2response dhollander "${subject}_desc-preproc_dwi.mif" \
     "${subject}_desc-dhollander_response-wm.txt" \
     "${subject}_desc-dhollander_response-gm.txt" \

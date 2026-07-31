@@ -18,5 +18,5 @@ for subject_dir in "$data_folder"/sub-*; do
         --error="$output/${subject_id}-recon_all-%j.err.txt" \
         --chdir="$subject_dir/anat" \
         --mem=64G --time=24:00:00 \
-        "$recon_all_job" "$subject_dir" "$PIPELINE_ROOT"
+        "$recon_all_job" "$subject_dir" "$PIPELINE_ROOT" $1
 done

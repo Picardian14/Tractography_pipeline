@@ -1,0 +1,14 @@
+dwiextract: [WARNING] existing output files will be overwritten
+mrmath: [WARNING] existing output files will be overwritten
+dwiextract: extracting volumes... [==================================================]
+mrmath: preloading data for "/tmp/mrtrix-tmp-qsB2Ko.mif"... [==================================================]
+mrmath: computing mean along axis 3...... [==================================================]
+mrconvert: [WARNING] existing output files will be overwritten
+mrconvert: copying from "mean_b0_AP.mif" to "mean_b0_AP.nii.gz"... [==================================================]
+mrconvert: compressing image "mean_b0_AP.nii.gz"... [==================================================]
+mrconvert: [WARNING] existing output files will be overwritten
+mrconvert: copying from "Diff_den_gibbs.mif" to "Diff_eddy_in.nii.gz"... [==================================================]
+mrconvert: compressing image "Diff_eddy_in.nii.gz"... [==================================================]
+mrconvert: [WARNING] existing output files will be overwritten
+mrconvert: uncompressing image "/network/iss/home/ivan.mindlin/Repos/Tractography_pipeline/doc_data/sub-8009671832/anat/sub-8009671832_desc-hdbet_T1w_bet.nii.gz"... [==================================================]
+mrconvert: copying from "/network/i...2_desc-hdbet_T1w_bet.nii.gz" to "/network/i...1832_desc-hdbet_T1w_bet.mif"... [==================================================]

@@ -1,11 +1,26 @@
 #!/bin/bash
+#SBATCH --partition=compute
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=4G
+#SBATCH --time=01:00:00
 
 ###############################################################################
 # PATH MACRO: edit ../paths_config.sh once, or override variables here.
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_ROOT="${1:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-source "${PIPELINE_ROOT}/scripts/paths_config.sh" $1
+source "${PIPELINE_ROOT}/scripts/paths_config.sh"
+
+# responsemean is provided by MRtrix. Keep direct/interactive execution working
+# in environments where MRtrix is already available without the module system.
+if ! command -v responsemean >/dev/null 2>&1; then
+	type module >/dev/null 2>&1 && module load MRtrix
+fi
+if ! command -v responsemean >/dev/null 2>&1; then
+	echo "responsemean is unavailable; load MRtrix before running this job." >&2
+	exit 1
+fi
+
 RESPONSE_DATA_DIR="${RESPONSE_DATA_DIR:-${BIDS_ROOT}}"
 cd "$RESPONSE_DATA_DIR" || exit 1
 

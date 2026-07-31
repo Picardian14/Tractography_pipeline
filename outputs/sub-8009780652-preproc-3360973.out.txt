@@ -1,0 +1,77 @@
+==========================================
+Processing subject: sub-8009780652
+Working directory: /network/iss/home/ivan.mindlin/Repos/Tractography_pipeline/doc_data/sub-8009780652
+==========================================
+Current working directory: /network/iss/cohen/data/Ivan/Nifti_DoC_Test/sub-8009780652/dwi
+Input info saved to sub-8009780652_desc-preprocessing_info.txt
+
+Step 1: Extracting the T1 brain mask with HD-BET...
+  - HD-BET outputs already exist, skipping brain extraction.
+
+Step 2: Converting to MRtrix format and denoising...
+  - Diff.mif already exists, skipping conversion and denoising.
+Step 3: Preparing synb0-disco inputs...
+  - Extracting mean b0 image for synb0-disco...
+
+Step 4: Running synb0-disco for distortion correction...
+synb0-disco already completed (outputs exist)
+
+Step 5: Preparing for eddy correction...
+Using denoised data for AP phase encoding
+Loading T1 brain mask...
+
+Step 6: Running eddy correction...
+  - Running eddy...
+
+Warning: In a future release the first argument will have to be "diffusion" when using eddy on diffusion data, i.e.
+eddy diffusion --imain='my_ima' --acqp='my_acqp' ...
+
+Warning: Writing of individual text files will be discontinued in favour of a single .json file in future versions
+
+Reading images
+Performing volume-to-volume registration
+Running Register
+Loading prediction maker
+Evaluating prediction maker model
+Calculating parameter updates
+Iter: 0, Total mss = 17.2132
+Loading prediction maker
+Evaluating prediction maker model
+Calculating parameter updates
+Iter: 1, Total mss = 14.8696
+Loading prediction maker
+Evaluating prediction maker model
+Calculating parameter updates
+Iter: 2, Total mss = 14.9139
+Loading prediction maker
+Evaluating prediction maker model
+Calculating parameter updates
+Iter: 3, Total mss = 14.8965
+Loading prediction maker
+Evaluating prediction maker model
+Calculating parameter updates
+Iter: 4, Total mss = 14.8926
+Running sm.ApplyB0LocationReference
+Running sm.PolateB0MovPar
+Running Register
+Loading prediction maker
+Evaluating prediction maker model
+Estimated hyperparameters: 2.873653 
+0.439137 
+4.546983 
+
+Calculating parameter updates
+Iter: 0, Total mss = 3.040766
+Loading prediction maker
+Evaluating prediction maker model
+Estimated hyperparameters: 2.643098 
+0.422798 
+4.593557 
+
+Loading prediction maker
+Evaluating prediction maker model
+Estimated hyperparameters: 2.494315 
+0.418045 
+4.406422 
+
+Calculating parameter updates

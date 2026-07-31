@@ -16,3 +16,23 @@ tckgen: [  8%]  1736551 seeds,  1727531 streamlines,   828091 selected
 tckgen: [ 16%]  3487621 seeds,  3469503 streamlines,  1663650 selected
 tckgen: [ 33%]  7063211 seeds,  7026167 streamlines,  3368873 selected
 tckgen: [ 67%] 14257201 seeds, 14182311 streamlines,  6798893 selected
+tckgen: [100%] 20968826 seeds, 20858726 streamlines, 10000000 selected
+tckedit: [WARNING] existing output files will be overwritten
+tckedit: [.   ]        1 read,        1 written
+tckedit: [ .  ]    29569 read,    29569 written
+tckedit: [  . ]    57345 read,    57345 written
+tckedit: [  . ]   113281 read,   113281 written
+tckedit: [done]   200000 read,   200000 written
+tcksift2: [WARNING] existing output files will be overwritten
+tcksift2: resampling ACT 5TT image to fixel image space... [==================================================]
+tcksift2: segmenting FODs... [==================================================]
+tcksift2: mapping tracks to image... [==================================================]
+tcksift2:   Iteration     CF (data)      CF (reg)     Streamlines
+..tcksift2: [.   ]         1        38.943%         0.792%        9999595
+..tcksift2: [  . ]         2        28.279%         1.666%        9999595
+..tcksift2: [  . ]         3        24.044%         2.408%        9999595
+....tcksift2: [   .]         5        20.181%         3.423%        9999595
+........tcksift2: [  . ]         9        17.274%         4.482%        9999595
+................tcksift2: [  . ]        17        15.412%         5.362%        9999595
+................................tcksift2: [ .  ]        33        14.377%         5.978%        9999595
+......................................tcksift2: [done]        52        14.014%         6.240%        9999595

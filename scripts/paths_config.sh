@@ -23,6 +23,7 @@ DCM2BIDS_OUTPUT_DIR="${DCM2BIDS_OUTPUT_DIR:-${PIPELINE_ROOT}/tmp_dcm2bids}" # te
 RAW_DICOM_DIR="${RAW_DICOM_DIR:-${PIPELINE_ROOT}/raw_dicom}"
 OUTPUT_DIR="${OUTPUT_DIR:-${PIPELINE_ROOT}/outputs}" # for Logging the cluster outputs
 ATLAS_ROOT="${ATLAS_ROOT:-${PIPELINE_ROOT}/atlas_data}" # to keep parcellation files
+# This should be a soft link to a proper freesurfer folder
 FREESURFER_SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR:-${PIPELINE_ROOT}/freesurfer}" # outputs from recon-all
 MNI_TEMPLATE="${MNI_TEMPLATE:-${PIPELINE_ROOT}/MNI152_T1_2mm.nii.gz}" # MNI template for registration
 SYNB0_SIF="${SYNB0_SIF:-${PIPELINE_ROOT}/synb0-disco_v3.0.sif}" # Singularity image for synb0-disco to do reverse phase encoding distortion correction

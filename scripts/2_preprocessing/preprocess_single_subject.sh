@@ -25,7 +25,7 @@ module load singularity
 # job output paths explicitly when site-specific absolute paths are needed.
 ###############################################################################
 PIPELINE_ROOT=$2
-source "${PIPELINE_ROOT}/scripts/paths_config.sh"
+source "${PIPELINE_ROOT}/scripts/paths_config.sh" 
 
 # Get parameters
 SUBJECT_DIR=$1           # Full path to a BIDS sub-* directory
@@ -52,8 +52,9 @@ DWI_STEM="${DWI_FILE%.nii.gz}"
 DWI_JSON="${DWI_STEM}.json"
 BVAL_FILE="${DWI_STEM}.bval"
 BVEC_FILE="${DWI_STEM}.bvec"
+SYNB0_SIF="${PIPELINE_ROOT}/synb0-disco_v3.0.sif"
 
-for required_file in "$T1_FILE" "$DWI_FILE" "$DWI_JSON" "$BVAL_FILE" "$BVEC_FILE"; do
+for required_file in "$T1_FILE" "$DWI_FILE" "$DWI_JSON" "$BVAL_FILE" "$BVEC_FILE" "$SYNB0_SIF"; do
     if [ -z "$required_file" ] || [ ! -f "$required_file" ]; then
         echo "Missing required BIDS input: $required_file" >&2
         exit 1
@@ -65,6 +66,7 @@ PREPROC_DWI_MIF="${SUBJECT_NAME}_desc-preproc_dwi.mif"
 PREPROC_DWI_NII="${SUBJECT_NAME}_desc-preproc_dwi.nii.gz"
 PREPROC_BVAL="${SUBJECT_NAME}_desc-preproc_dwi.bval"
 PREPROC_BVEC="${SUBJECT_NAME}_desc-preproc_dwi.bvec"
+DWI_B0_MASK_NII="${SUBJECT_NAME}_desc-preproc_b0_mask.nii.gz"
 T1_BRAIN_NII="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz"
 T1_MASK_NII="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w_bet.nii.gz"
 T1_MASK_MIF="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w_bet.mif"
@@ -114,20 +116,25 @@ fi
 echo ""
 echo "Step 2: Converting to MRtrix format and denoising..."
 #
-mrconvert "$DWI_FILE" Diff.mif -fslgrad "$BVEC_FILE" "$BVAL_FILE" -force
-#
-## Denoise with extent 7 (similar to Siemens pipeline)
-dwidenoise Diff.mif Diff_den_ext7.mif -extent 7 -noise noise_ext7.mif -force
-#
-## Calculate residuals for QC
-mrcalc Diff.mif Diff_den_ext7.mif -subtract residual_ext7.mif -force
-#
-## Remove Gibbs ringing
-mrdegibbs Diff_den_ext7.mif Diff_den_gibbs_ext7.mif -force
-#
-## Create simpler name for processed data
-ln -sf Diff_den_gibbs_ext7.mif Diff_den_gibbs.mif
-#
+if [ ! -f "Diff.mif" ]; then
+    echo "  - Converting DWI to MRtrix format..."
+    mrconvert "$DWI_FILE" Diff.mif -fslgrad "$BVEC_FILE" "$BVAL_FILE" -force
+    #
+    ## Denoise with extent 7 (similar to Siemens pipeline)
+    dwidenoise Diff.mif Diff_den_ext7.mif -extent 7 -noise noise_ext7.mif -force
+    #
+    ## Calculate residuals for QC
+    mrcalc Diff.mif Diff_den_ext7.mif -subtract residual_ext7.mif -force
+    #
+    ## Remove Gibbs ringing
+    mrdegibbs Diff_den_ext7.mif Diff_den_gibbs_ext7.mif -force
+    #
+    ## Create simpler name for processed data
+    ln -sf Diff_den_gibbs_ext7.mif Diff_den_gibbs.mif
+    #
+else
+    echo "  - Diff.mif already exists, skipping conversion and denoising."
+fi
 ###############################################
 ## STEP 3: Prepare synb0-disco inputs
 ###############################################
@@ -142,18 +149,29 @@ PHASE_ENCODING_DIRECTION=$(
         "$DWI_JSON" INPUTS/acqparams.txt
 ) || exit 1
 
-if [ "$PHASE_ENCODING_DIRECTION" = "j-" ]; then
-    # Extract mean b0 from AP
-    dwiextract Diff_den_gibbs.mif - -bzero -force | mrmath - mean mean_b0_AP.mif -axis 3 -force
-    mrconvert mean_b0_AP.mif mean_b0_AP.nii.gz -force
-    cp mean_b0_AP.nii.gz INPUTS/b0.nii.gz
-elif [ "$PHASE_ENCODING_DIRECTION" = "j" ]; then
-    # Extract mean b0 from PA
-    dwiextract Diff_den_gibbs.mif - -bzero -force | mrmath - mean mean_b0_PA.mif -axis 3 -force
-    mrconvert mean_b0_PA.mif mean_b0_PA.nii.gz -force
-    cp mean_b0_PA.nii.gz INPUTS/b0.nii.gz
+DEFAULT_FRACTION_BET=0.4
+if [ ! -f "mean_b0_AP.nii.gz" ] && [ ! -f "mean_b0_PA.nii.gz" ]; then
+    echo "  - Extracting mean b0 image for synb0-disco..."
+    if [ "$PHASE_ENCODING_DIRECTION" = "j-" ]; then
+        # Extract mean b0 from AP
+        dwiextract Diff_den_gibbs.mif - -bzero -force | mrmath - mean mean_b0_AP.mif -axis 3 -force
+        mrconvert mean_b0_AP.mif mean_b0_AP.nii.gz -force
+        cp mean_b0_AP.nii.gz INPUTS/b0.nii.gz
+        # Extract here the BET mask from the b0 diffusion image to use later for eddy
+        bet mean_b0_AP.nii.gz $DWI_B0_MASK_NII -n -m -f $DEFAULT_FRACTION_BET 
+        mv "${DWI_B0_MASK_NII%.nii.gz}_mask.nii.gz" "$DWI_B0_MASK_NII"
+    elif [ "$PHASE_ENCODING_DIRECTION" = "j" ]; then
+        # Extract mean b0 from PA
+        dwiextract Diff_den_gibbs.mif - -bzero -force | mrmath - mean mean_b0_PA.mif -axis 3 -force
+        mrconvert mean_b0_PA.mif mean_b0_PA.nii.gz -force
+        cp mean_b0_PA.nii.gz INPUTS/b0.nii.gz
+        bet mean_b0_PA.nii.gz $DWI_B0_MASK_NII -n -m -f $DEFAULT_FRACTION_BET
+        mv "${DWI_B0_MASK_NII%.nii.gz}_mask.nii.gz" "$DWI_B0_MASK_NII"
+    fi
+else
+    echo "  - Mean b0 image already exists, skipping extraction."
 fi
-#
+
 #
 #
 cp "$T1_FILE" INPUTS/T1.nii.gz
@@ -207,6 +225,7 @@ fi
 mrconvert "$T1_MASK_NII" "$T1_MASK_MIF" -force
 
 
+
 ##############################################
 # STEP 6: Run eddy correction
 ##############################################
@@ -217,7 +236,7 @@ echo "Step 6: Running eddy correction..."
 if [ ! -f "$PREPROC_DWI_NII" ]; then
     echo "  - Running eddy..."
     eddy --imain=Diff_eddy_in.nii.gz \
-	     --mask="$T1_MASK_NII" \
+	     --mask="$DWI_B0_MASK_NII" \
      --acqp=INPUTS/acqparams.txt \
      --index=eddy_indices.txt \
      --bvecs="$BVEC_FILE" \

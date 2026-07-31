@@ -23,8 +23,7 @@ report_processing_time() {
 }
 trap report_processing_time EXIT
 
-ml FreeSurfer/6.0.0
-ml singularity
+ml FreeSurfer/7.4.1
 
 ###############################################################################
 # PATH MACRO: edit ../paths_config.sh once, or override variables here.
@@ -40,37 +39,15 @@ t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
     ! -name "${subject_id}_desc-hdbet_T1w_mask.nii.gz" \
     -print -quit)
 echo "Job Doing $subject_id"
-export SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR}"
+export SUBJECTS_DIR="/network/iss/cohen/data/Ivan/Tractography/freesurfer7"
 # If the subject folder in SUBJECTS_DIR does not exist, run recon-all.
 
 echo "Running recon-all for $subject_id"
-# Use the same Singularity image as HD-BET. Set HD_BET_SINGULARITY_IMAGE in paths_config.sh or
-# export HD_BET_SINGULARITY_IMAGE env var before calling this script.
-SINGULARITY_IMAGE="${PIPELINE_ROOT}/diffusion_image.sif"
-# Bind necessary paths so recon-all inside the container can access data and FREESURFER subjects dir
-ANAT_DIR="${subject_dir}/anat"
-ANAT_BIND_DIR=$(readlink -f "$ANAT_DIR")
-FREESURFER_BIND_DIR=$(readlink -f "${FREESURFER_SUBJECTS_DIR}")
-BIND_PATHS=("${FREESURFER_SUBJECTS_DIR}:${FREESURFER_SUBJECTS_DIR}" "${subject_dir}:${subject_dir}" "${PIPELINE_ROOT}:${PIPELINE_ROOT}" "${HOME}:${HOME}" "${ANAT_BIND_DIR}:/anat" "${FREESURFER_BIND_DIR}:/subjects" "$FREESURFER_HOME/license.txt:/usr/local/freesurfer/license.txt")
-bind_arg=$(IFS=, ; echo "${BIND_PATHS[*]}")
-
-run_recon_cmd() {
-    if [ -f "$SINGULARITY_IMAGE" ]; then
-        singularity exec --bind "$bind_arg" "$SINGULARITY_IMAGE" \
-            recon-all "$@"
-    else
-        echo "Singularity image $SINGULARITY_IMAGE not found." >&2
-        return 1
-    fi
-}
-
-
 if [ ! -d "$SUBJECTS_DIR/$subject_id" ]; then
-    echo "Subject folder $SUBJECTS_DIR/$subject_id does not exist. Running recon-all with -i."
-    run_recon_cmd -all -s "$subject_id" \
-    -i "/anat/$(basename "$t1_file")" \
-    -parallel -openmp 4
+    echo "Subject folder $SUBJECTS_DIR/$subject_id does not exist. Running recon-all."
+    recon-all -all -s "$subject_id" -i "$t1_file" -parallel -openmp 4
 else
     echo "Subject folder $SUBJECTS_DIR/$subject_id already exists. Running without -i."
-    run_recon_cmd -all -s "$subject_id" -parallel -openmp 4
+    recon-all -all -s "$subject_id" -parallel -openmp 4
+    
 fi
