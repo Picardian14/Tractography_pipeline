@@ -6,7 +6,10 @@ The script expects subject directories named ``sub-*``.  For each subject it:
 1. identifies DWI from the unique ``.bvec`` file and its shared prefix;
 2. identifies T1w from the remaining NIfTI file (preferring a name containing
    ``T1``); and
-3. renames the files to ``sub-<label>_{T1w,dwi}.*`` in ``anat/`` and ``dwi/``.
+3. renames the files to ``sub-<label>_{T1w,dwi}.*`` in ``anat/`` and ``dwi/``;
+   and
+4. when recognized reusable derivatives are present, gives them the same
+   canonical names used by the rest of the pipeline.
 
 Nothing is changed unless --apply is supplied.
 """
@@ -22,6 +25,22 @@ from pathlib import Path
 
 DWI_EXTENSIONS = (".nii.gz", ".json", ".bval", ".bvec")
 T1_EXTENSIONS = (".nii.gz", ".json")
+
+# These files are not normally emitted by dcm2bids-helper.  Recognizing them is
+# useful when a helper directory has also been populated with already computed
+# derivatives (for example, HCP Recommended products).  They must not be
+# mistaken for the raw T1w image.
+REUSABLE_FILES = {
+    "T1w_acpc_dc_restore_brain.nii.gz": ("anat", "desc-hdbet_T1w.nii.gz"),
+    "brainmask_fs.nii.gz": ("anat", "desc-hdbet_T1w_bet.nii.gz"),
+    "T1w_acpc_dc_restore_1.25.nii.gz": (
+        "anat",
+        "space-dwi_desc-preproc_T1w.nii.gz",
+    ),
+    "nodif_brain_mask.nii.gz": ("dwi", "desc-preproc_dwi_mask.nii.gz"),
+    "grad_dev.nii.gz": ("dwi", "desc-graddev_dwi.nii.gz"),
+    "eddy_parameters": ("dwi", "desc-eddy_parameters.txt"),
+}
 
 
 def strip_extension(path: Path, extension: str) -> str:
@@ -57,10 +76,18 @@ def plan_subject(subject_dir: Path) -> list[tuple[Path, Path]]:
     if missing:
         raise ValueError(f"DWI sidecars with prefix {dwi_prefix!r} are missing: {missing}")
 
+    reusable_sources = {
+        source_name: helper / source_name
+        for source_name in REUSABLE_FILES
+        if (helper / source_name).is_file()
+    }
+    reusable_niftis = {
+        path for path in reusable_sources.values() if path.name.endswith(".nii.gz")
+    }
     other_niftis = [
         path
         for path in helper.glob("*.nii.gz")
-        if path != dwi_sources[".nii.gz"]
+        if path != dwi_sources[".nii.gz"] and path not in reusable_niftis
     ]
     t1_named = [
         path for path in other_niftis if re.search(r"(^|[^a-z0-9])t1([^a-z0-9]|$)", path.name, re.I)
@@ -80,6 +107,9 @@ def plan_subject(subject_dir: Path) -> list[tuple[Path, Path]]:
         moves.append((source, subject_dir / "anat" / f"{subject_id}_T1w{ext}"))
     for ext, source in dwi_sources.items():
         moves.append((source, subject_dir / "dwi" / f"{subject_id}_dwi{ext}"))
+    for source_name, source in reusable_sources.items():
+        datatype, suffix = REUSABLE_FILES[source_name]
+        moves.append((source, subject_dir / datatype / f"{subject_id}_{suffix}"))
     return moves
 
 

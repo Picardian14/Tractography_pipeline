@@ -26,7 +26,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-MNI_TEMPLATE="${MNI_TEMPLATE:-${PIPELINE_ROOT}/MNI152_T1_2mm.nii.gz}"
+MNI_TEMPLATE="${MNI_TEMPLATE:-${PIPELINE_ROOT}/templates_parcellations/MNI152_T1_2mm.nii.gz}"
 SYNB0_SIF="${SYNB0_SIF:-${PIPELINE_ROOT}/images/synb0-disco_v3.0.sif}"
 
 # Get parameters
@@ -388,6 +388,28 @@ if [ -f "$T1_BRAIN_NII" ]; then
 else
     echo "  WARNING: $T1_BRAIN_NII not found. Skipping ANTs via T1 option."
 fi
+
+### Register T1 to DWI space (rigid) for QC
+echo ""
+echo "Registering T1 to DWI space (rigid) for QC..."
+
+flirt \
+    -in $T1_BRAIN_NII \
+    -ref mean_b0_final.nii.gz \
+    -dof 6 \
+    -omat rigid_T1toDWI.mat
+
+transformconvert \
+    rigid_T1toDWI.mat \
+    $T1_BRAIN_NII \
+    mean_b0_final.nii.gz \
+    flirt_import \
+    rigid_T1toDWI.txt
+
+mrtransform \
+    $T1_BRAIN_NII \
+    $ANAT_DIR/T1_in_dwi_space.nii.gz \
+    -linear rigid_T1toDWI.txt
 
 echo ""
 echo "Quality check files created:"

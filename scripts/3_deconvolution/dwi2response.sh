@@ -33,12 +33,12 @@ echo "Current working directory: $(pwd)"
 subject=$(basename "$subject_dir")
 
 mrconvert ${subject}_desc-preproc_dwi.nii.gz ${subject}_desc-preproc_dwi.mif -fslgrad ${subject}_desc-preproc_dwi.bvec ${subject}_desc-preproc_dwi.bval -force -force 
-if [ ! -f "${subject}_desc-resampled_mask.mif" ]; then
-    mrconvert "${subject_dir}/anat/${subject}_desc-hdbet_T1w_mask.nii.gz" \
-        "${subject}_desc-hdbet_T1w_mask.mif" -force
-    mrtransform "${subject}_desc-hdbet_T1w_mask.mif" \
+if [ ! -f "${subject}_desc-resampled_bet.mif" ]; then
+    mrconvert "${subject_dir}/anat/${subject}_desc-hdbet_T1w_bet.nii.gz" \
+        "${subject}_desc-hdbet_T1w_bet.mif" -force
+    mrtransform "${subject}_desc-hdbet_T1w_bet.mif" \
         -template "${subject}_desc-preproc_dwi.mif" \
-        -interp nearest "${subject}_desc-resampled_mask.mif" -force
+        -interp nearest "${subject}_desc-resampled_bet.mif" -force
 fi
 #dwiextract Diff_preproc_unbiased.mif - -bzero -force | mrmath - mean meanb0_post_preproc.nii -axis 3 -force
 #flirt -in T1_HDbet.nii.gz -ref meanb0_post_preproc.nii -dof 6 -omat rigid_T1toDWI.mat 			

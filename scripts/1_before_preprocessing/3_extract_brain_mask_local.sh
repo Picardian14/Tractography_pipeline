@@ -16,6 +16,7 @@ singularity exec \
     --bind "${BIDS_ROOT}:/bids" \
     "${PIPELINE_ROOT}/images/diffusion_image.sif" \
     bash <<'EOF'
+
 for subject_dir in /bids/sub-*; do
     [ -d "$subject_dir" ] || continue
 
@@ -23,13 +24,14 @@ for subject_dir in /bids/sub-*; do
         echo "No anat directory found in $subject_dir, skipping." >&2
         continue
     fi
+    ANAT_DIR="$subject_dir/anat"
 
     subject=$(basename "$subject_dir")
     anat_dir="$subject_dir/anat"
     t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
         -name "${subject}*_T1w.nii.gz" \
         ! -name "${subject}_desc-hdbet_T1w.nii.gz" \
-        ! -name "${subject}_desc-hdbet_T1w_mask.nii.gz" \
+        ! -name "${subject}_desc-hdbet_T1w_bet.nii.gz" \
         -print -quit 2>/dev/null)
 
     if [ -z "$t1_file" ]; then
@@ -40,6 +42,25 @@ for subject_dir in /bids/sub-*; do
     echo "Applying HD-BET locally to $subject"
     cd "$anat_dir" && hd-bet -i "$t1_file" \
             -o "${subject}_desc-hdbet_T1w.nii.gz" \
-            -device cpu --disable_tta
+            -device cpu --disable_tta --save_bet_mask
+
+    flirt \
+        -in ${subject}_desc-hdbet_T1w.nii.gz \
+        -ref mean_b0_final.nii.gz \
+        -dof 6 \
+        -omat rigid_T1toDWI.mat
+
+    transformconvert \
+        rigid_T1toDWI.mat \
+        ${subject}_desc-hdbet_T1w.nii.gz \
+        mean_b0_final.nii.gz \
+        flirt_import \
+        rigid_T1toDWI.txt
+
+    mrtransform \
+        ${subject}_desc-hdbet_T1w.nii.gz \
+        $ANAT_DIR/T1_in_dwi_space.nii.gz \
+        -linear rigid_T1toDWI.txt
+    
 done
 EOF

@@ -21,7 +21,7 @@ subject=$(basename "$subject_dir")
 t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
     -name "${subject}*_T1w.nii.gz" \
     ! -name "${subject}_desc-hdbet_T1w.nii.gz" \
-    ! -name "${subject}_desc-hdbet_T1w_mask.nii.gz" \
+    ! -name "${subject}_desc-hdbet_T1w_bet.nii.gz" \
     -print -quit 2>/dev/null)
 
 if [ -z "$t1_file" ]; then
@@ -39,4 +39,4 @@ singularity exec \
     "${PIPELINE_ROOT}/images/diffusion_image.sif" \
     hd-bet -i "/subject/anat/${t1_name}" \
     -o "/subject/anat/${subject}_desc-hdbet_T1w.nii.gz" \
-    -device cpu --disable_tta
+    -device cpu --disable_tta --save_bet_mask

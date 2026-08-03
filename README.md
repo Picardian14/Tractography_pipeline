@@ -56,3 +56,18 @@ outputs remain in `FREESURFER_SUBJECTS_DIR`.
 
 The preprocessing script reads `PhaseEncodingDirection` and `TotalReadoutTime`
 from each DWI JSON sidecar.
+
+## Preparing HCP Recommended data
+
+After organizing HCP Recommended archives, prepare their reusable masks,
+MRtrix inputs, mean-b0 images, and T1-to-DWI QC registrations before launching
+stages 3--6:
+
+```bash
+bash scripts/hcp_recommended_to_bids.sh /data/hcp-zips /data/hcp-bids
+bash scripts/2_preprocessing/prepare_hcp_for_processing.sh /data/hcp-bids
+bash scripts/3_to_6_msmt.sh /data/hcp-bids
+```
+
+The preparation script uses the complete HCP products retained under
+`sourcedata/hcp/`; it does not repeat HCP diffusion preprocessing.
