@@ -4,16 +4,21 @@
 # Slurm workflow.
 #
 # Usage:
-#   ./scripts/3_to_6_msmt.sh [BIDS folder name]
-#
-# The optional folder name has the same meaning as in paths_config.sh and
-# defaults to "doc_data". BIDS_ROOT and the other path variables may also be
-# overridden through the environment.
+#   ./scripts/3_to_6_msmt.sh /absolute/path/to/bids
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/paths_config.sh" "${1:-doc_data}"
+PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids" >&2
+    exit 2
+fi
+
+BIDS_ROOT="$(readlink -f "$1")"
+OUTPUT_DIR="${OUTPUT_DIR:-${PIPELINE_ROOT}/outputs}"
+FREESURFER_SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR:-${PIPELINE_ROOT}/freesurfer}"
 
 mkdir -p "$OUTPUT_DIR" "$FREESURFER_SUBJECTS_DIR"
 
@@ -68,7 +73,7 @@ for subject_dir in "$BIDS_ROOT"/sub-*; do
         --output="$OUTPUT_DIR/${subject_id}-dwi2resp-%j.out.txt" \
         --error="$OUTPUT_DIR/${subject_id}-dwi2resp-%j.err.txt" \
         --chdir="$subject_dir/dwi" \
-        "$dwi2response_job" "$subject_dir" "$PIPELINE_ROOT")
+        "$dwi2response_job" "$subject_dir")
     response_ids+=("${response_id[$subject_id]}")
 
     # Tissue segmentation needs the .mif produced during dwi2response, but it
@@ -81,16 +86,17 @@ for subject_dir in "$BIDS_ROOT"/sub-*; do
             --error="$OUTPUT_DIR/${subject_id}-5tt-%j.err.txt" \
             --chdir="$subject_dir/dwi" \
             --mem=16G --time=48:00:00 \
-            "$tissue_job" "$subject_dir" "$PIPELINE_ROOT")
+            "$tissue_job" "$subject_dir")
 
         # FreeSurfer is independent of deconvolution and can run immediately.
         recon_id["$subject_id"]=$(submit_job "recon-all for $subject_id" \
+            --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT" \
             --job-name="recon_all-$subject_id" \
             --output="$OUTPUT_DIR/${subject_id}-recon_all-%j.out.txt" \
             --error="$OUTPUT_DIR/${subject_id}-recon_all-%j.err.txt" \
             --chdir="$subject_dir/anat" \
             --mem=64G --time=24:00:00 \
-            "$recon_all_job" "$subject_dir" "$PIPELINE_ROOT")
+            "$recon_all_job" "$subject_dir")
     fi
 done
 
@@ -107,7 +113,7 @@ mean_id=$(submit_job "cohort response mean" \
     --error="$OUTPUT_DIR/responsemean-msmt-%j.err.txt" \
     --chdir="$BIDS_ROOT" \
     --cpus-per-task=1 --mem=4G --time=01:00:00 \
-    "$responsemean_job" "$PIPELINE_ROOT")
+    "$responsemean_job" "$BIDS_ROOT")
 
 for subject_id in "${subjects[@]}"; do
     subject_dir="$BIDS_ROOT/$subject_id"
@@ -118,7 +124,7 @@ for subject_id in "${subjects[@]}"; do
         --output="$OUTPUT_DIR/${subject_id}-msmt-csd-%j.out.txt" \
         --error="$OUTPUT_DIR/${subject_id}-msmt-csd-%j.err.txt" \
         --chdir="$subject_dir/dwi" \
-        "$msmt_csd_job" "$subject_dir" "$PIPELINE_ROOT")
+        "$msmt_csd_job" "$subject_dir")
 
     if [ -z "${tissue_id[$subject_id]:-}" ]; then
         echo "Skipping tractography/parcellation for $subject_id: no anat directory." >&2
@@ -132,16 +138,17 @@ for subject_id in "${subjects[@]}"; do
         --error="$OUTPUT_DIR/${subject_id}-tck-msmt-%j.err.txt" \
         --chdir="$subject_dir/dwi" \
         --mem=16G --time=12:00:00 \
-        "$tckgen_job" "$subject_dir" "$PIPELINE_ROOT")
+        "$tckgen_job" "$subject_dir")
 
     submit_job "MSMT parcellation for $subject_id" \
+        --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT" \
         --dependency="afterok:${tck_id}:${recon_id[$subject_id]}" \
         --job-name="parcellate-msmt-$subject_id" \
         --output="$OUTPUT_DIR/${subject_id}-parcellate-msmt-%j.out.txt" \
         --error="$OUTPUT_DIR/${subject_id}-parcellate-msmt-%j.err.txt" \
         --chdir="$subject_dir/dwi" \
         --mem=32G --time=24:00:00 \
-        "$parcellate_job" "$subject_dir" "$PIPELINE_ROOT" >/dev/null
+        "$parcellate_job" "$subject_dir" >/dev/null
 done
 
 echo "MSMT workflow submitted for ${#subjects[@]} subject(s)."

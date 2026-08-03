@@ -6,26 +6,29 @@
 # 2. Check each subject for matching anat and dwi inputs
 # 3. Submit one preprocessing job per subject
 #
-# Usage: bash preprocess_controls.sh
+# Usage: bash 1_submits_all_subs_preproc.sh /absolute/path/to/bids
 
-###############################################################################
-# PATH MACRO: edit ../paths_config.sh once, or override variables here.
-###############################################################################
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" 
-source "${SCRIPT_DIR}/../paths_config.sh" $1
-BIDS_DATASET="${BIDS_DATASET:-${BIDS_ROOT}}"
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids" >&2
+    exit 2
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+BIDS_ROOT="$(readlink -f "$1")"
+OUTPUT_DIR="${OUTPUT_DIR:-${PIPELINE_ROOT}/outputs}"
 PREPROCESS_JOB="${PREPROCESS_JOB:-${SCRIPT_DIR}/preprocess_single_subject.sh}"
 mkdir -p "$OUTPUT_DIR"
 
 echo "=========================================="
 echo "Submitting healthy control preprocessing jobs"
-echo "BIDS dataset: $BIDS_DATASET"
+echo "BIDS dataset: $BIDS_ROOT"
 echo "=========================================="
 
 # Counter for total jobs submitted
 total_jobs=0
 
-for subject_dir in "$BIDS_DATASET"/sub-*; do
+for subject_dir in "$BIDS_ROOT"/sub-*; do
         if [ ! -d "$subject_dir" ]; then
             continue
         fi
@@ -43,12 +46,12 @@ for subject_dir in "$BIDS_DATASET"/sub-*; do
         if [ -n "$t1_file" ] && [ -n "$dwi_file" ]; then
             echo "  Submitting: $subject_name"
             sbatch --job-name="preproc-$subject_name" \
+                --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT" \
                 --chdir="$subject_dir/dwi" \
                 --output="${OUTPUT_DIR}/${subject_name}-preproc-%j.out.txt" \
                 --error="${OUTPUT_DIR}/${subject_name}-preproc-%j.err.txt" \
                 "$PREPROCESS_JOB" \
-                "$subject_dir" \
-                "$PIPELINE_ROOT"
+                "$subject_dir"
             
             ((total_jobs++))
         fi

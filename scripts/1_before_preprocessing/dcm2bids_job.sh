@@ -8,8 +8,10 @@
 
 module load python/3.8
 
-PIPELINE_ROOT=$3
-source "${PIPELINE_ROOT}/scripts/paths_config.sh"
+if [ "$#" -ne 2 ] || [ ! -f "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/dicom.zip SUBJECT_LABEL" >&2
+    exit 2
+fi
 
 dicom_zip=$1
 subject_label=$2

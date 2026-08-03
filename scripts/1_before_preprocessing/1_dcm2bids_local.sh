@@ -2,24 +2,22 @@
 ###############################################################################
 # Run DICOM conversion locally, one ZIP file at a time.
 ###############################################################################
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh" $1
-
-folder="$(readlink -f "${RAW_DICOM_DIR}")"
-converted_data_dir="${DCM2BIDS_OUTPUT_DIR:-${BIDS_ROOT}}"
-mkdir -p "$converted_data_dir"
-converted_data_dir="$(readlink -f "$converted_data_dir")"
-
-if [ ! -d "$folder" ]; then
-    echo "DICOM directory is not accessible: $folder" >&2
-    exit 1
+if [ "$#" -ne 2 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/raw-dicom /absolute/path/to/output" >&2
+    exit 2
 fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+folder="$(readlink -f "$1")"
+mkdir -p "$2"
+converted_data_dir="$(readlink -f "$2")"
 
 # Resolve the host paths and mount them at stable paths in the container.
 singularity exec \
     --bind "${folder}:/dicom:ro" \
     --bind "${converted_data_dir}:/output" \
-    "${PIPELINE_ROOT}/diffusion_image.sif" \
+    "${PIPELINE_ROOT}/images/diffusion_image.sif" \
     bash <<'EOF'
 echo "Running dcm2bids locally on all ZIP files in /dicom"
 

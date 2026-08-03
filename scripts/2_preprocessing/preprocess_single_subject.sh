@@ -9,7 +9,7 @@
 #SBATCH --mail-type=FAIL,END
 
 # Single subject preprocessing
-# Usage: sbatch preprocess_single_subject.sh /bids/sub-ID PIPELINE_ROOT
+# Usage: sbatch preprocess_single_subject.sh /absolute/path/to/bids/sub-ID
 
 PREPROCESSING_START_TIME=$(date +%s)
 
@@ -19,13 +19,15 @@ module load ANTs
 module load FreeSurfer
 module load singularity
 
-###############################################################################
-# PATH MACRO: edit ../paths_config.sh once, or override variables here.
-# Note: Slurm #SBATCH paths cannot expand shell variables; submitter scripts set
-# job output paths explicitly when site-specific absolute paths are needed.
-###############################################################################
-PIPELINE_ROOT=$2
-source "${PIPELINE_ROOT}/scripts/paths_config.sh" 
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    exit 2
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+MNI_TEMPLATE="${MNI_TEMPLATE:-${PIPELINE_ROOT}/MNI152_T1_2mm.nii.gz}"
+SYNB0_SIF="${SYNB0_SIF:-${PIPELINE_ROOT}/images/synb0-disco_v3.0.sif}"
 
 # Get parameters
 SUBJECT_DIR=$1           # Full path to a BIDS sub-* directory
@@ -52,8 +54,6 @@ DWI_STEM="${DWI_FILE%.nii.gz}"
 DWI_JSON="${DWI_STEM}.json"
 BVAL_FILE="${DWI_STEM}.bval"
 BVEC_FILE="${DWI_STEM}.bvec"
-SYNB0_SIF="${PIPELINE_ROOT}/synb0-disco_v3.0.sif"
-
 for required_file in "$T1_FILE" "$DWI_FILE" "$DWI_JSON" "$BVAL_FILE" "$BVEC_FILE" "$SYNB0_SIF"; do
     if [ -z "$required_file" ] || [ ! -f "$required_file" ]; then
         echo "Missing required BIDS input: $required_file" >&2
@@ -97,7 +97,7 @@ else
 
     singularity exec \
         --bind "${ANAT_BIND_DIR}:/anat" \
-        "${PIPELINE_ROOT}/diffusion_image.sif" \
+        "${PIPELINE_ROOT}/images/diffusion_image.sif" \
         hd-bet -i "/anat/${T1_NAME}" -o "/anat/${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" --save_bet_mask -device cpu --disable_tta
     if [ $? -ne 0 ]; then
         echo "ERROR: HD-BET failed for $SUBJECT_NAME" >&2

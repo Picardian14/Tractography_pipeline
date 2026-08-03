@@ -23,14 +23,17 @@ report_processing_time() {
 }
 trap report_processing_time EXIT
 
-ml FreeSurfer/6.0.0
+ml FreeSurfer/6.0.0 # FreeSurfer has to be either installed or loaded as a module
 ml singularity
 
-###############################################################################
-# PATH MACRO: edit ../paths_config.sh once, or override variables here.
-###############################################################################
-PIPELINE_ROOT=$2
-source "${PIPELINE_ROOT}/scripts/paths_config.sh" $3
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    exit 2
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+FREESURFER_SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR:-${PIPELINE_ROOT}/freesurfer}"
 
 subject_dir=$1
 subject_id=$(basename "$subject_dir")
@@ -44,13 +47,12 @@ export SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR}"
 # If the subject folder in SUBJECTS_DIR does not exist, run recon-all.
 
 echo "Running recon-all for $subject_id"
-# Use the same Singularity image as HD-BET. Set HD_BET_SINGULARITY_IMAGE in paths_config.sh or
-# export HD_BET_SINGULARITY_IMAGE env var before calling this script.
-SINGULARITY_IMAGE="${PIPELINE_ROOT}/diffusion_image.sif"
+# Use the same repository-owned Singularity image as HD-BET.
+SINGULARITY_IMAGE="${PIPELINE_ROOT}/images/diffusion_image.sif"
 # Bind necessary paths so recon-all inside the container can access data and FREESURFER subjects dir
 ANAT_DIR="${subject_dir}/anat"
 ANAT_BIND_DIR=$(readlink -f "$ANAT_DIR")
-FREESURFER_BIND_DIR=$(readlink -f "${FREESURFER_SUBJECTS_DIR}")
+FREESURFER_BIND_DIR=$(readlink -f "${FREESURFER_SUBJECTS_DIR}") # You have to bind the freesurfer folder
 BIND_PATHS=("${FREESURFER_SUBJECTS_DIR}:${FREESURFER_SUBJECTS_DIR}" "${subject_dir}:${subject_dir}" "${PIPELINE_ROOT}:${PIPELINE_ROOT}" "${HOME}:${HOME}" "${ANAT_BIND_DIR}:/anat" "${FREESURFER_BIND_DIR}:/subjects" "$FREESURFER_HOME/license.txt:/usr/local/freesurfer/license.txt")
 bind_arg=$(IFS=, ; echo "${BIND_PATHS[*]}")
 

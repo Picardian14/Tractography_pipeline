@@ -23,16 +23,19 @@ ml FreeSurfer/6.0.0
 ml FSL
 ml MRtrix
 
-###############################################################################
-# PATH MACRO: edit ../paths_config.sh once, or override variables here.
-###############################################################################
-PIPELINE_ROOT=$2
-source "${PIPELINE_ROOT}/scripts/paths_config.sh"
-export ATLAS_LABEL_NAME="${ATLAS_LABEL_NAME:-schaefer100-yeo7}"
-export ATLAS_DIR="${ATLAS_DIR:-${ATLAS_ROOT}/${ATLAS_LABEL_NAME}}"
-export TABLE_LABEL_NAME="${TABLE_LABEL_NAME:-LUT_${ATLAS_LABEL_NAME}}"
-source $FREESURFER_HOME/SetUpFreeSurfer.sh
-export SUBJECTS_DIR="${SUBJECTS_DIR:-${FREESURFER_SUBJECTS_DIR}}"
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    exit 2
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+ATLAS_LABEL_NAME="${ATLAS_LABEL_NAME:-schaefer100-yeo7}" # Should indicate the folder name in the templates_parcellation folder
+ATLAS_ROOT="${ATLAS_ROOT:-${PIPELINE_ROOT}/templates_parcellation}"
+ATLAS_DIR="${ATLAS_DIR:-${ATLAS_ROOT}/${ATLAS_LABEL_NAME}}"
+TABLE_LABEL_NAME="${TABLE_LABEL_NAME:-LUT_${ATLAS_LABEL_NAME}}" # format of Lookup tables (LUT) in the parcellation folder of the templates_parcellation
+source "$FREESURFER_HOME/SetUpFreeSurfer.sh"
+export SUBJECTS_DIR="${PIPELINE_ROOT}/freesurfer"
 
 
 subject_dir=$1

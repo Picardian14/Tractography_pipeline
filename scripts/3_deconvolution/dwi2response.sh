@@ -22,13 +22,10 @@ trap report_processing_time EXIT
 module load MRtrix
 module load python/3.8
 
-###############################################################################
-# PATH MACRO: edit ../paths_config.sh once, or override variables here.
-###############################################################################
-#SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-#source "${SCRIPT_DIR}/../paths_config.sh"
-PIPELINE_ROOT=$2
-source "${PIPELINE_ROOT}/scripts/paths_config.sh"
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    exit 2
+fi
 
 subject_dir=$1
 echo "Job Doing $subject_dir"

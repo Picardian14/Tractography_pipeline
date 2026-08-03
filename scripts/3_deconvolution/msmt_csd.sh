@@ -19,8 +19,10 @@ trap report_processing_time EXIT
 
 module load MRtrix
 
-PIPELINE_ROOT=$2
-source "${PIPELINE_ROOT}/scripts/paths_config.sh"
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    exit 2
+fi
 
 subject_dir=$1
 subject=$(basename "$subject_dir")

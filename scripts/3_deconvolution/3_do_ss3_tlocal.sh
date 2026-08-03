@@ -1,12 +1,11 @@
 #!/bin/bash
-###############################################################################
-# PATH MACRO: edit ../paths_config.sh once, or override variables here.
-###############################################################################
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PIPELINE_ROOT="${1:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-source "${PIPELINE_ROOT}/scripts/paths_config.sh" $1
-BIDS_DATASET="${BIDS_DATASET:-${BIDS_ROOT}}"
-cd "$BIDS_DATASET" || exit 1
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids" >&2
+    exit 2
+fi
+
+BIDS_ROOT="$(readlink -f "$1")"
+cd "$BIDS_ROOT" || exit 1
 for subject_dir in sub-*/; do
         [ -d "$subject_dir/dwi" ] || continue
         subject_start_time=$SECONDS
@@ -23,7 +22,7 @@ for subject_dir in sub-*/; do
 				echo "No ${subject}_desc-preproc_dwi.nii.gz in $subject_dir/dwi"
 			fi
         
-		cd "$BIDS_DATASET" || exit 1
+		cd "$BIDS_ROOT" || exit 1
         subject_elapsed=$((SECONDS - subject_start_time))
         printf "Processing time for %s: %02d:%02d:%02d (HH:MM:SS)\n" \
             "$subject" \

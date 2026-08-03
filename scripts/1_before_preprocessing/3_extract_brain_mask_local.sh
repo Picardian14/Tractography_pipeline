@@ -2,21 +2,19 @@
 ###############################################################################
 # Run HD-BET locally, one BIDS subject at a time.
 ###############################################################################
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh" $1
-
-subjects_input_dir="${SUBJECTS_INPUT_DIR:-${BIDS_ROOT}}"
-subjects_input_dir="$(readlink -f "$subjects_input_dir")"
-
-if [ ! -d "$subjects_input_dir" ]; then
-    echo "BIDS directory is not accessible: $subjects_input_dir" >&2
-    exit 1
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids" >&2
+    exit 2
 fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+BIDS_ROOT="$(readlink -f "$1")"
 
 # Resolve the host symlink and mount its target at a stable path in the container.
 singularity exec \
-    --bind "${subjects_input_dir}:/bids" \
-    "${PIPELINE_ROOT}/diffusion_image.sif" \
+    --bind "${BIDS_ROOT}:/bids" \
+    "${PIPELINE_ROOT}/images/diffusion_image.sif" \
     bash <<'EOF'
 for subject_dir in /bids/sub-*; do
     [ -d "$subject_dir" ] || continue

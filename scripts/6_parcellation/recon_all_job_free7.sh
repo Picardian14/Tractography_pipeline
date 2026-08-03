@@ -25,12 +25,13 @@ trap report_processing_time EXIT
 
 ml FreeSurfer/7.4.1
 
-###############################################################################
-# PATH MACRO: edit ../paths_config.sh once, or override variables here.
-###############################################################################
-PIPELINE_ROOT=$2
-source "${PIPELINE_ROOT}/scripts/paths_config.sh" $3
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    exit 2
+fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 subject_dir=$1
 subject_id=$(basename "$subject_dir")
 t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
@@ -39,7 +40,8 @@ t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
     ! -name "${subject_id}_desc-hdbet_T1w_mask.nii.gz" \
     -print -quit)
 echo "Job Doing $subject_id"
-export SUBJECTS_DIR="/network/iss/cohen/data/Ivan/Tractography/freesurfer7"
+export SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR:-${PIPELINE_ROOT}/freesurfer7}"
+mkdir -p "$SUBJECTS_DIR"
 # If the subject folder in SUBJECTS_DIR does not exist, run recon-all.
 
 echo "Running recon-all for $subject_id"

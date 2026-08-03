@@ -8,8 +8,13 @@
 
 module load singularity
 
-PIPELINE_ROOT="$2"
-source "${PIPELINE_ROOT}/scripts/paths_config.sh"
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    exit 2
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 
 subject_dir="$1"
 subject=$(basename "$subject_dir")
@@ -26,12 +31,12 @@ fi
 
 echo "Job Doing $subject"
 echo "Current working directory: $(pwd)"
-bids_dir=$(readlink -f "$BIDS_ROOT")
+subject_bind_dir=$(readlink -f "$subject_dir")
 t1_name=$(basename "$t1_file")
 
 singularity exec \
-    --bind "${bids_dir}:/bids" \
-    "${PIPELINE_ROOT}/diffusion_image.sif" \
-    hd-bet -i "/bids/${subject}/anat/${t1_name}" \
-    -o "/bids/${subject}/anat/${subject}_desc-hdbet_T1w.nii.gz" \
+    --bind "${subject_bind_dir}:/subject" \
+    "${PIPELINE_ROOT}/images/diffusion_image.sif" \
+    hd-bet -i "/subject/anat/${t1_name}" \
+    -o "/subject/anat/${subject}_desc-hdbet_T1w.nii.gz" \
     -device cpu --disable_tta

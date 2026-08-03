@@ -1,16 +1,17 @@
 #!/bin/bash
 
-###############################################################################
-# PATH MACRO: edit ../paths_config.sh once, or override variables here.
-###############################################################################
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../paths_config.sh" $1
+if [ "$#" -ne 2 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/raw-dicom /absolute/path/to/output" >&2
+    exit 2
+fi
 
-folder="$RAW_DICOM_DIR"
-converted_data_dir="${DCM2BIDS_OUTPUT_DIR:-${BIDS_ROOT}}"
-output="${OUTPUT_DIR}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+folder="$(readlink -f "$1")"
+mkdir -p "$2"
+converted_data_dir="$(readlink -f "$2")"
+output="${OUTPUT_DIR:-${PIPELINE_ROOT}/outputs}"
 dcm2bids_job="${DCM2BIDS_JOB:-${SCRIPT_DIR}/dcm2bids_job.sh}"
-mkdir -p "$converted_data_dir"
 mkdir -p "$output"
 
 for file in "$folder"/*.zip; do
@@ -24,5 +25,5 @@ for file in "$folder"/*.zip; do
         --output="$output/sub-${subject_label}-dcm2bids-%j.out.txt" \
         --error="$output/sub-${subject_label}-dcm2bids-%j.err.txt" \
         --chdir="$job_dir" \
-        "$dcm2bids_job" "$file" "$subject_label" "$PIPELINE_ROOT"
+        "$dcm2bids_job" "$file" "$subject_label"
 done
