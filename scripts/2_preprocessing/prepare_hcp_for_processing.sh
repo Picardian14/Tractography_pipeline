@@ -124,7 +124,7 @@ for subject_dir in "$BIDS_ROOT"/sub-*; do
 
     rigid_fsl="$dwi_dir/rigid_T1toDWI.mat"
     rigid_mrtrix="$dwi_dir/rigid_T1toDWI.txt"
-    t1_in_dwi="$anat_dir/T1_in_dwi_space.nii.gz"
+    t1_in_dwi="$anat_dir/${subject}_T1_in_dwi_space.nii.gz"
     if [[ ! -f "$rigid_fsl" || ! -f "$t1_in_dwi" ]]; then
         flirt -in "$t1_brain" -ref "$mean_b0_nii" \
             -out "$t1_in_dwi" -omat "$rigid_fsl" \

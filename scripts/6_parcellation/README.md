@@ -14,12 +14,11 @@ Keep the connectome route consistent with deconvolution and tractography:
 bash scripts/6_parcellation/1_run_recon_all_jobs.sh /path/to/bids
 ```
 
-| Inputs | Processing | Outputs |
-| --- | --- | --- |
-| `anat/<sub>_*_T1w.nii.gz`, repository Singularity image, FreeSurfer license | Run `recon-all -all` for each subject | Full FreeSurfer subject directory at `freesurfer/<sub>/` by default |
+**Substep:** 1. FreeSurfer reconstruction  
+**Processing:** Run `recon-all -all` for each subject  
+**Inputs:** `anat/<sub>_*_T1w.nii.gz`, repository Singularity image, FreeSurfer license  
+**Outputs:** Full FreeSurfer subject directory at `freesurfer/<sub>/` by default
 
-`recon_all_job_free7.sh` is the FreeSurfer 7.4.1 alternative and defaults to
-`freesurfer7/<sub>/`; it is not the launcher's default job script.
 
 ## 2. Parcellation and connectome
 
@@ -34,11 +33,20 @@ bash scripts/6_parcellation/2_run_parcellate_msmt_jobs.sh /path/to/bids
 bash scripts/6_parcellation/2_run_parcellate_ss3t_jobs.sh /path/to/bids
 ```
 
-| Substep | Inputs | Processing | Outputs |
-| --- | --- | --- | --- |
-| 1. Surface atlas mapping | `freesurfer/<sub>/`, atlas `.annot` files | Map each `fsaverage` hemisphere annotation to the subject | `freesurfer/<sub>/label/{lh,rh}.schaefer100-yeo7.annot` |
-| 2. Label volume | Subject annotations and atlas lookup tables | Create the anatomical parcellation and convert labels for MRtrix | `freesurfer/<sub>/mri/schaefer100-yeo7.mgz`, `.nii.gz`, and `_parcels.nii.gz` |
-| 3. Connectome | `<sub>_model-<model>_tractogram-10M.tck`, matching SIFT2 weights, parcels image | Run symmetric `tck2connectome` with zero diagonal and SIFT2 weights | `<sub>_model-<model>_atlas-schaefer100-yeo7_connectome.csv`, `..._assignments.csv` in `<sub>/dwi/` |
+**Substep:** 2.1. Surface atlas mapping  
+**Processing:** Map each `fsaverage` hemisphere annotation to the subject  
+**Inputs:** `freesurfer/<sub>/`, atlas `.annot` files  
+**Outputs:** `freesurfer/<sub>/label/{lh,rh}.schaefer100-yeo7.annot`
+
+**Substep:** 2.2. Label volume  
+**Processing:** Create the anatomical parcellation and convert labels for MRtrix  
+**Inputs:** Subject annotations and atlas lookup tables  
+**Outputs:** `freesurfer/<sub>/mri/schaefer100-yeo7.mgz`, `.nii.gz`, and `_parcels.nii.gz`
+
+**Substep:** 2.3. Connectome  
+**Processing:** Run symmetric `tck2connectome` with zero diagonal and SIFT2 weights  
+**Inputs:** `<sub>_model-<model>_tractogram-10M.tck`, matching SIFT2 weights, parcels image  
+**Outputs:** `<sub>_model-<model>_atlas-schaefer100-yeo7_connectome.csv`, `..._assignments.csv` in `<sub>/dwi/`
 
 The script uses the SIFT2 weights directly. It does not apply inverse-node-
 volume scaling or per-subject maximum normalization.
@@ -51,7 +59,7 @@ registered to diffusion space, following `check_images.sh`:
 ```bash
 PIPELINE_ROOT=/path/to/Tractography_pipeline
 subject=sub-001
-mrview ../anat/T1_in_dwi_space.nii.gz \
+mrview ../anat/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz \
   -plane 2 -size 2048,1024 -autoscale \
   -overlay.load "$PIPELINE_ROOT/freesurfer/$subject/mri/schaefer100-yeo7_parcels.nii.gz"
 ```

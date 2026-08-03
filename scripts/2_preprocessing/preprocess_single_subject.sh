@@ -408,7 +408,7 @@ transformconvert \
 
 mrtransform \
     $T1_BRAIN_NII \
-    $ANAT_DIR/T1_in_dwi_space.nii.gz \
+    $ANAT_DIR/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz \
     -linear rigid_T1toDWI.txt
 
 echo ""

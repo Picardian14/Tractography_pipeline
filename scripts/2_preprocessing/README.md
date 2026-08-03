@@ -22,16 +22,45 @@ The stage also uses `images/diffusion_image.sif`,
 Jobs run in each subject's `dwi/` directory. In the table below, `<sub>` is the
 subject directory name, for example `sub-001`.
 
-| Substep | Main inputs | Processing | Main outputs |
-| --- | --- | --- | --- |
-| 1. T1 brain extraction | `../anat/<sub>_*_T1w.nii.gz` | HD-BET brain extraction | `../anat/<sub>_desc-hdbet_T1w.nii.gz`, `../anat/<sub>_desc-hdbet_T1w_bet.nii.gz` |
-| 2. Denoising and Gibbs correction | Raw DWI, `.bval`, `.bvec` | Convert to MRtrix, denoise with extent 7, calculate residuals, remove Gibbs ringing | `Diff.mif`, `Diff_den_ext7.mif`, `noise_ext7.mif`, `residual_ext7.mif`, `Diff_den_gibbs_ext7.mif`, `Diff_den_gibbs.mif` |
-| 3. Synb0-DISCO preparation | Corrected DWI, DWI JSON, raw T1w | Create acquisition parameters, mean b=0, b=0 mask, and Synb0 inputs | `INPUTS/acqparams.txt`, `INPUTS/b0.nii.gz`, `INPUTS/T1.nii.gz`, `mean_b0_AP.*` or `mean_b0_PA.*`, `<sub>_desc-preproc_b0_mask.nii.gz` |
-| 4. Distortion estimation | `INPUTS/` | Run Synb0-DISCO/topup preparation | `OUTPUTS/`, including `OUTPUTS/topup_fieldcoef.nii.gz` and the `OUTPUTS/topup` files used by eddy |
-| 5–6. Eddy preparation and correction | DWI, acquisition parameters, b=0 mask, topup outputs | Create eddy index/input files; correct motion, distortion, and gradients | `eddy_indices.txt`, `Diff_eddy_in.nii.gz`, `eddy_unwarped_images.nii.gz`, `eddy_unwarped_images.eddy_rotated_bvecs`, eddy QC files, `percentageOutliers.txt`, `Diff_preproc.mif` |
-| 7. Bias correction and final export | `Diff_preproc.mif` | ANTs bias-field correction and gradient export | `Diff_preproc_unbiased.mif`, `bias.mif`, `<sub>_desc-preproc_dwi.mif`, `.nii.gz`, `.bval`, and `.bvec` |
-| 8. DTI/FA | Preprocessed DWI and T1 mask | Fit the tensor and calculate FA | `<sub>_model-dti_tensor.mif`, `<sub>_model-dti_FA.mif`, `<sub>_model-dti_FA.nii.gz` |
-| 9. Registration/QC images | Mean b=0, FA, brain-extracted T1w, MNI template | Direct b=0-to-MNI registration, FA-to-MNI via T1, and rigid T1-to-DWI registration | `mean_b0_final.*`, `mean_b0_in_MNI.nii.gz`, `FA_in_MNI_direct.nii`, `FA_in_MNI_via_T1.nii`, registration transforms, `../anat/T1_in_dwi_space.nii.gz` |
+**Substep:** 1. T1 brain extraction  
+**Processing:** HD-BET brain extraction  
+**Inputs:** `../anat/<sub>_*_T1w.nii.gz`  
+**Outputs:** `../anat/<sub>_desc-hdbet_T1w.nii.gz`, `../anat/<sub>_desc-hdbet_T1w_bet.nii.gz`
+
+**Substep:** 2. Denoising and Gibbs correction  
+**Processing:** Convert to MRtrix, denoise with extent 7, calculate residuals, remove Gibbs ringing  
+**Inputs:** Raw DWI, `.bval`, `.bvec`  
+**Outputs:** `Diff.mif`, `Diff_den_ext7.mif`, `noise_ext7.mif`, `residual_ext7.mif`, `Diff_den_gibbs_ext7.mif`, `Diff_den_gibbs.mif`
+
+**Substep:** 3. Synb0-DISCO preparation  
+**Processing:** Create acquisition parameters, mean b=0, b=0 mask, and Synb0 inputs  
+**Inputs:** Corrected DWI, DWI JSON, raw T1w  
+**Outputs:** `INPUTS/acqparams.txt`, `INPUTS/b0.nii.gz`, `INPUTS/T1.nii.gz`, `mean_b0_AP.*` or `mean_b0_PA.*`, `<sub>_desc-preproc_b0_mask.nii.gz`
+
+**Substep:** 4. Distortion estimation  
+**Processing:** Run Synb0-DISCO/topup preparation  
+**Inputs:** `INPUTS/`  
+**Outputs:** `OUTPUTS/`, including `OUTPUTS/topup_fieldcoef.nii.gz` and the `OUTPUTS/topup` files used by eddy
+
+**Substep:** 5–6. Eddy preparation and correction  
+**Processing:** Create eddy index/input files; correct motion, distortion, and gradients  
+**Inputs:** DWI, acquisition parameters, b=0 mask, topup outputs  
+**Outputs:** `eddy_indices.txt`, `Diff_eddy_in.nii.gz`, `eddy_unwarped_images.nii.gz`, `eddy_unwarped_images.eddy_rotated_bvecs`, eddy QC files, `percentageOutliers.txt`, `Diff_preproc.mif`
+
+**Substep:** 7. Bias correction and final export  
+**Processing:** ANTs bias-field correction and gradient export  
+**Inputs:** `Diff_preproc.mif`  
+**Outputs:** `Diff_preproc_unbiased.mif`, `bias.mif`, `<sub>_desc-preproc_dwi.mif`, `.nii.gz`, `.bval`, and `.bvec`
+
+**Substep:** 8. DTI/FA  
+**Processing:** Fit the tensor and calculate FA  
+**Inputs:** Preprocessed DWI and T1 mask  
+**Outputs:** `<sub>_model-dti_tensor.mif`, `<sub>_model-dti_FA.mif`, `<sub>_model-dti_FA.nii.gz`
+
+**Substep:** 9. Registration/QC images  
+**Processing:** Direct b=0-to-MNI registration, FA-to-MNI via T1, and rigid T1-to-DWI registration  
+**Inputs:** Mean b=0, FA, brain-extracted T1w, MNI template  
+**Outputs:** `mean_b0_final.*`, `mean_b0_in_MNI.nii.gz`, `FA_in_MNI_direct.nii`, `FA_in_MNI_via_T1.nii`, registration transforms, `../anat/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz`
 
 The T1-to-DWI transform maps the anatomical image into diffusion coordinates
 without reslicing it to the lower-resolution DWI grid.
