@@ -27,6 +27,25 @@ fi
 
 mkdir -p "$output_dir" "$source_data_dir"
 
+link_hcp_file() {
+    local source=$1
+    local destination=$2
+
+    if [[ ! -f "$source" ]]; then
+        printf 'Expected HCP file is missing: %s\n' "$source" >&2
+        return 1
+    fi
+    if [[ -e "$destination" ]]; then
+        if [[ "$source" -ef "$destination" ]]; then
+            return 0
+        fi
+        printf 'Destination exists but is not the expected HCP link: %s\n' \
+            "$destination" >&2
+        return 1
+    fi
+    ln "$source" "$destination"
+}
+
 mapfile -t diffusion_archives < <(
     find "$source_dir" -maxdepth 1 -type f \
         -name '*_Diffusion3TRecommended.zip' -printf '%f\n' | sort
@@ -56,44 +75,70 @@ for diffusion_name in "${diffusion_archives[@]}"; do
     extracted_subject="$source_data_dir/sub-$subject"
     completion_marker="$extracted_subject/.hcp_bids_complete"
     if [[ -f "$completion_marker" ]]; then
-        printf 'Subject %s is already complete; skipping\n' "$subject"
-        printf 'sub-%s\n' "$subject" >> "$output_dir/participants.tsv"
-        continue
+        printf 'Subject %s is already extracted; checking organized links\n' "$subject"
+    else
+        archive_subject_dir="$source_data_dir/$subject"
+        mkdir -p "$source_data_dir"
+
+        printf 'Extracting subject %s\n' "$subject"
+        unzip -oq "$structural_zip" -d "$source_data_dir"
+        unzip -oq "$diffusion_zip" -d "$source_data_dir"
+
+        if [[ -e "$extracted_subject" ]]; then
+            printf 'Extraction target already exists: %s\n' "$extracted_subject" >&2
+            exit 1
+        fi
+        mv "$archive_subject_dir" "$extracted_subject"
     fi
-
-    archive_subject_dir="$source_data_dir/$subject"
-    mkdir -p "$source_data_dir"
-
-    printf 'Extracting subject %s\n' "$subject"
-    unzip -oq "$structural_zip" -d "$source_data_dir"
-    unzip -oq "$diffusion_zip" -d "$source_data_dir"
-
-    if [[ -e "$extracted_subject" ]]; then
-        printf 'Extraction target already exists: %s\n' "$extracted_subject" >&2
-        exit 1
-    fi
-    mv "$archive_subject_dir" "$extracted_subject"
 
     anat_dir="$output_dir/sub-$subject/anat"
     dwi_dir="$output_dir/sub-$subject/dwi"
     mkdir -p "$anat_dir" "$dwi_dir"
 
     t1_source="$extracted_subject/T1w/T1w_acpc_dc_restore.nii.gz"
+    t1_brain_source="$extracted_subject/T1w/T1w_acpc_dc_restore_brain.nii.gz"
+    t1_mask_source="$extracted_subject/T1w/brainmask_fs.nii.gz"
+    t1_dwi_source="$extracted_subject/T1w/T1w_acpc_dc_restore_1.25.nii.gz"
     dwi_source="$extracted_subject/T1w/Diffusion/data.nii.gz"
     bval_source="$extracted_subject/T1w/Diffusion/bvals"
     bvec_source="$extracted_subject/T1w/Diffusion/bvecs"
+    dwi_mask_source="$extracted_subject/T1w/Diffusion/nodif_brain_mask.nii.gz"
+    graddev_source="$extracted_subject/T1w/Diffusion/grad_dev.nii.gz"
+    eddy_parameters_source="$extracted_subject/T1w/Diffusion/eddy_parameters"
 
-    for required_file in "$t1_source" "$dwi_source" "$bval_source" "$bvec_source"; do
+    for required_file in \
+        "$t1_source" "$t1_brain_source" "$t1_mask_source" "$t1_dwi_source" \
+        "$dwi_source" "$bval_source" "$bvec_source" "$dwi_mask_source"; do
         if [[ ! -f "$required_file" ]]; then
             printf 'Expected HCP file is missing: %s\n' "$required_file" >&2
             exit 1
         fi
     done
 
-    ln "$t1_source" "$anat_dir/sub-${subject}_desc-preproc_T1w.nii.gz"
-    ln "$dwi_source" "$dwi_dir/sub-${subject}_desc-preproc_dwi.nii.gz"
-    ln "$bval_source" "$dwi_dir/sub-${subject}_desc-preproc_dwi.bval"
-    ln "$bvec_source" "$dwi_dir/sub-${subject}_desc-preproc_dwi.bvec"
+    link_hcp_file "$t1_source" \
+        "$anat_dir/sub-${subject}_desc-preproc_T1w.nii.gz"
+    link_hcp_file "$t1_brain_source" \
+        "$anat_dir/sub-${subject}_desc-hdbet_T1w.nii.gz"
+    link_hcp_file "$t1_mask_source" \
+        "$anat_dir/sub-${subject}_desc-hdbet_T1w_bet.nii.gz"
+    link_hcp_file "$t1_dwi_source" \
+        "$anat_dir/sub-${subject}_space-dwi_desc-preproc_T1w.nii.gz"
+    link_hcp_file "$dwi_source" \
+        "$dwi_dir/sub-${subject}_desc-preproc_dwi.nii.gz"
+    link_hcp_file "$bval_source" \
+        "$dwi_dir/sub-${subject}_desc-preproc_dwi.bval"
+    link_hcp_file "$bvec_source" \
+        "$dwi_dir/sub-${subject}_desc-preproc_dwi.bvec"
+    link_hcp_file "$dwi_mask_source" \
+        "$dwi_dir/sub-${subject}_desc-preproc_dwi_mask.nii.gz"
+    if [[ -f "$graddev_source" ]]; then
+        link_hcp_file "$graddev_source" \
+            "$dwi_dir/sub-${subject}_desc-graddev_dwi.nii.gz"
+    fi
+    if [[ -f "$eddy_parameters_source" ]]; then
+        link_hcp_file "$eddy_parameters_source" \
+            "$dwi_dir/sub-${subject}_desc-eddy_parameters.txt"
+    fi
 
     cat > "$anat_dir/sub-${subject}_desc-preproc_T1w.json" <<EOF
 {

@@ -14,9 +14,9 @@ for subject_dir in sub-*/; do
 		cd "$subject_dir/dwi" || continue
             if [ -f "${subject}_desc-preproc_dwi.nii.gz" ]; then
 				if [ -f "${subject}_desc-preproc_dwi.mif" ]; then
-					ss3t_csd_beta1 "${subject}_desc-preproc_dwi.mif" "${subject}_desc-meanDhollander_response-wm.txt" "${subject}_model-ss3t_fod-wm.mif" "${subject}_desc-meanDhollander_response-gm.txt" "${subject}_model-ss3t_fod-gm.mif" "${subject}_desc-meanDhollander_response-csf.txt" "${subject}_model-ss3t_fod-csf.mif" -mask "${subject}_desc-resampled_mask.mif" -nthreads 32 -force
+					ss3t_csd_beta1 "${subject}_desc-preproc_dwi.mif" "${subject}_desc-meanDhollander_response-wm.txt" "${subject}_model-ss3t_fod-wm.mif" "${subject}_desc-meanDhollander_response-gm.txt" "${subject}_model-ss3t_fod-gm.mif" "${subject}_desc-meanDhollander_response-csf.txt" "${subject}_model-ss3t_fod-csf.mif" -mask "${subject}_desc-resampled_bet.mif" -nthreads 32 -force
 					mrconvert -coord 3 0 "${subject}_model-ss3t_fod-wm.mif" - | mrcat "${subject}_model-ss3t_fod-csf.mif" "${subject}_model-ss3t_fod-gm.mif" - "${subject}_model-ss3t_vf.mif" -force
-					mtnormalise "${subject}_model-ss3t_fod-wm.mif" "${subject}_model-ss3t_desc-normalized_fod-wm.mif" "${subject}_model-ss3t_fod-gm.mif" "${subject}_model-ss3t_desc-normalized_fod-gm.mif" "${subject}_model-ss3t_fod-csf.mif" "${subject}_model-ss3t_desc-normalized_fod-csf.mif" -mask "${subject}_desc-resampled_mask.mif" -force
+					mtnormalise "${subject}_model-ss3t_fod-wm.mif" "${subject}_model-ss3t_desc-normalized_fod-wm.mif" "${subject}_model-ss3t_fod-gm.mif" "${subject}_model-ss3t_desc-normalized_fod-gm.mif" "${subject}_model-ss3t_fod-csf.mif" "${subject}_model-ss3t_desc-normalized_fod-csf.mif" -mask "${subject}_desc-resampled_bet.mif" -force
 				fi
 			else
 				echo "No ${subject}_desc-preproc_dwi.nii.gz in $subject_dir/dwi"

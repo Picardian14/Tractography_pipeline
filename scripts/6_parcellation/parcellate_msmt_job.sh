@@ -31,7 +31,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 ATLAS_LABEL_NAME="${ATLAS_LABEL_NAME:-schaefer100-yeo7}" # Should indicate the folder name in the templates_parcellation folder
-ATLAS_ROOT="${ATLAS_ROOT:-${PIPELINE_ROOT}/templates_parcellation}"
+ATLAS_ROOT="${ATLAS_ROOT:-${PIPELINE_ROOT}/templates_parcellations}"
 ATLAS_DIR="${ATLAS_DIR:-${ATLAS_ROOT}/${ATLAS_LABEL_NAME}}"
 TABLE_LABEL_NAME="${TABLE_LABEL_NAME:-LUT_${ATLAS_LABEL_NAME}}" # format of Lookup tables (LUT) in the parcellation folder of the templates_parcellation
 source "$FREESURFER_HOME/SetUpFreeSurfer.sh"

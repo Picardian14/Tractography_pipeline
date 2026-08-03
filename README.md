@@ -24,7 +24,7 @@ bash scripts/3_deconvolution/2_responsemean.sh /data/my_study/bids
 Repository-owned resources are resolved relative to the launcher location.
 Launchers explicitly export that repository path to the few Slurm jobs that
 need repository resources, because Slurm executes a transferred copy of a batch
-script. These resources include `atlas_data/`, `MNI152_T1_2mm.nii.gz`,
+script. These resources include `templates_parcellations/` and
 `images/diffusion_image.sif`, and `synb0-disco_v3.0.sif`. Slurm logs default to
 `outputs/`, and FreeSurfer outputs default to `freesurfer/`, both at the
 repository root. Existing advanced overrides such as `OUTPUT_DIR`,
