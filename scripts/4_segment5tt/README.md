@@ -22,7 +22,7 @@ Jobs run in `<sub>/dwi/`.
 **Substep:** 2. Registration reference  
 **Processing:** Extract and average b=0 volumes (Step could be skipped if already calculated)
 **Inputs:** `<sub>_desc-preproc_dwi.mif`  
-**Outputs:** `<sub>_desc-mean_b0.mif`, `<sub>_desc-mean_b0.nii.gz`
+**Outputs:** `mean_b0_final.mif`, `mean_b0_final.nii.gz`
 
 **Substep:** 3. Rigid T1-to-DWI registration  
 **Processing:** FLIRT rigid registration and MRtrix transform conversion  

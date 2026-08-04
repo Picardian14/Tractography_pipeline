@@ -48,19 +48,16 @@ echo "Current working directory: $(pwd)"
 if [ ! -f "${subject_id}_desc-coreg_5tt.mif" ]; then
     echo "  - Generating 5tt coregistered to DWI..."
     mrconvert "$t1_file" "${subject_id}_T1w.mif" -force
-    5ttgen fsl "${subject_id}_T1w.mif" "${subject_id}_desc-nocoreg_5tt.mif" -force
-    dwiextract "${subject_id}_desc-preproc_dwi.mif" - -bzero | \
-        mrmath - mean "${subject_id}_desc-mean_b0.mif" -axis 3 -force
-    mrconvert "${subject_id}_desc-mean_b0.mif" "${subject_id}_desc-mean_b0.nii.gz" -force
+    5ttgen fsl "${subject_id}_T1w.mif" "${subject_id}_desc-nocoreg_5tt.mif" -force        
     mrconvert "${subject_id}_desc-nocoreg_5tt.mif" "${subject_id}_desc-nocoreg_5tt.nii.gz" -force
     fslroi "${subject_id}_desc-nocoreg_5tt.nii.gz" "${subject_id}_desc-nocoreg_5tt_vol0.nii.gz" 0 1
     flirt -in "${subject_id}_desc-nocoreg_5tt_vol0.nii.gz" \
-        -ref "${subject_id}_desc-mean_b0.nii.gz" \
+        -ref "${dwi_dir}/mean_b0_final.nii.gz" \
         -interp nearestneighbour -dof 6 \
         -omat "${subject_id}_from-T1w_to-dwi_rigid.mat"
     transformconvert "${subject_id}_from-T1w_to-dwi_rigid.mat" \
         "${subject_id}_desc-nocoreg_5tt_vol0.nii.gz" \
-        "${subject_id}_desc-mean_b0.nii.gz" \
+        "${dwi_dir}/mean_b0_final.nii.gz" \
         flirt_import "${subject_id}_from-T1w_to-dwi_rigid.txt" -force
     mrtransform "${subject_id}_desc-nocoreg_5tt.nii.gz" \
         -linear "${subject_id}_from-T1w_to-dwi_rigid.txt" -inverse \
