@@ -1,7 +1,7 @@
 # Stage 6: cortical parcellation and connectome
 
 This stage first runs FreeSurfer reconstruction, then maps the Schaefer atlas
-to each subject and builds a SIFT2-weighted connectome.
+to each subject and builds a SIFT2-weighted connectome. This step can be ran along the pre-processing step. (Takes 6H aprox)
 
 Keep the connectome route consistent with deconvolution and tractography:
 

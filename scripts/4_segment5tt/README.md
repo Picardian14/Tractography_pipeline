@@ -20,7 +20,7 @@ Jobs run in `<sub>/dwi/`.
 **Outputs:** `<sub>_T1w.mif`, `<sub>_desc-nocoreg_5tt.mif`
 
 **Substep:** 2. Registration reference  
-**Processing:** Extract and average b=0 volumes  
+**Processing:** Extract and average b=0 volumes (Step could be skipped if already calculated)
 **Inputs:** `<sub>_desc-preproc_dwi.mif`  
 **Outputs:** `<sub>_desc-mean_b0.mif`, `<sub>_desc-mean_b0.nii.gz`
 

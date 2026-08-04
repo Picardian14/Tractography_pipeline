@@ -38,7 +38,7 @@ subject directory name, for example `sub-001`.
 **Outputs:** `INPUTS/acqparams.txt`, `INPUTS/b0.nii.gz`, `INPUTS/T1.nii.gz`, `mean_b0_AP.*` or `mean_b0_PA.*`, `<sub>_desc-preproc_b0_mask.nii.gz`
 
 **Substep:** 4. Distortion estimation  
-**Processing:** Run Synb0-DISCO/topup preparation  
+**Processing:** Run Synb0-DISCO/topup preparation. Here an artificial inverted B0 image will be created to calculate the TOPUP coefficients that will be used for eddy correction  
 **Inputs:** `INPUTS/`  
 **Outputs:** `OUTPUTS/`, including `OUTPUTS/topup_fieldcoef.nii.gz` and the `OUTPUTS/topup` files used by eddy
 

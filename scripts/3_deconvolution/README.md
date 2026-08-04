@@ -75,15 +75,15 @@ subject=sub-001
 model=ss3t
 ```
 
-Check the resampled mask on the preprocessed DWI in all three planes:
+* Check the resampled mask on the preprocessed DWI in all three planes:
 
 ```bash
 mrview "${subject}_desc-preproc_dwi.mif" \
   -overlay.load "${subject}_desc-resampled_bet.mif"
 ```
 
-Inspect all volumes of the response-voxel image. WM, GM, and CSF selections
-should fall in the corresponding tissues, and lesions should not dominate the
+* Inspect all volumes of the response-voxel image. **WM, GM, and CSF selections
+should fall in the corresponding tissues**, and lesions should not dominate the
 selection:
 
 ```bash
@@ -91,9 +91,8 @@ mrview "${subject}_desc-preproc_dwi.mif" \
   -overlay.load "${subject}_desc-dhollander_voxels.mif"
 ```
 
-Inspect normalized WM FOD glyphs on the T1 registered to diffusion space. Zoom
-into lesions and increase the glyph scale when necessary (approximately 3–4
-was suggested in the preprocessing discussion):
+* Inspect normalized WM FOD glyphs on the T1 registered to diffusion space. Zoom
+into lesions and increase the glyph scale when necessary for better visualization:
 
 ```bash
 mrview ../anat/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz \
