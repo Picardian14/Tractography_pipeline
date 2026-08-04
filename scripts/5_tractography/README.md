@@ -18,19 +18,49 @@ bash scripts/5_tractography/1_run_tckgen_ss3t_jobs.sh /path/to/bids
 Jobs run in `<sub>/dwi/`. Replace `<model>` with `msmt` or `ss3t`.
 
 **Substep:** 1. ACT tractography  
-**Processing:** Generate 10 million streamlines with ACT, backtracking, and GMWMI seeding  
-**Inputs:** `<sub>_model-<model>_desc-normalized_fod-wm.mif`, `<sub>_desc-coreg_5tt.mif`, `<sub>_desc-coreg_gmwmi.mif`  
-**Outputs:** `<sub>_model-<model>_tractogram-10M.tck`
+**Processing:** Generate 10 million streamlines with ACT, backtracking, and GMWMI seeding
+
+**Inputs:**
+
+- `<sub>_model-<model>_desc-normalized_fod-wm.mif`: the normalized
+  white-matter FOD that supplies tracking directions.
+- `<sub>_desc-coreg_5tt.mif`: the registered five-tissue-type image used by
+  ACT to constrain streamlines.
+- `<sub>_desc-coreg_gmwmi.mif`: the registered GM–WM interface used for
+  seeding.
+
+**Outputs:**
+
+- `<sub>_model-<model>_tractogram-10M.tck`: the full tractogram containing 10
+  million streamlines.
 
 **Substep:** 2. QC subset  
-**Processing:** Select 200,000 streamlines for visualization  
-**Inputs:** Full 10M tractogram  
-**Outputs:** `<sub>_model-<model>_tractogram-200k.tck`
+**Processing:** Select 200,000 streamlines for visualization
+
+**Inputs:**
+
+- `<sub>_model-<model>_tractogram-10M.tck`.
+
+**Outputs:**
+
+- `<sub>_model-<model>_tractogram-200k.tck`: a smaller streamline subset used
+  only for visual QC.
 
 **Substep:** 3. SIFT2  
-**Processing:** Calculate SIFT2 weights on the full tractogram  
-**Inputs:** Full 10M tractogram, normalized WM FOD, registered 5TT  
-**Outputs:** `<sub>_model-<model>_sift2-weights.txt`, `..._sift2-mu.txt`, `..._sift2-coeffs.txt`
+**Processing:** Calculate SIFT2 weights on the full tractogram
+
+**Inputs:**
+
+- `<sub>_model-<model>_tractogram-10M.tck`.
+- `<sub>_model-<model>_desc-normalized_fod-wm.mif`.
+- `<sub>_desc-coreg_5tt.mif`.
+
+**Outputs:**
+
+- `<sub>_model-<model>_sift2-weights.txt`: one SIFT2 weight for each streamline
+  in the full tractogram.
+- `<sub>_model-<model>_sift2-mu.txt`: the SIFT2 proportionality coefficient.
+- `<sub>_model-<model>_sift2-coeffs.txt`: the coefficients from the SIFT2 fit.
 
 The 200k tractogram is only for visual QC. Later connectome construction uses
 the 10M tractogram and its matching SIFT2 weights.

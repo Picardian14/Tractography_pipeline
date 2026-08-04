@@ -11,56 +11,171 @@ bash scripts/2_preprocessing/1_submits_all_subs_preproc.sh /path/to/bids
 
 Each subject must contain:
 
-- `anat/sub-*_T1w.nii.gz`
-- `dwi/sub-*_dwi.nii.gz` and matching `.json`, `.bval`, and `.bvec` files
-- `PhaseEncodingDirection` (`j` or `j-`) and `TotalReadoutTime` in the DWI JSON
+- `anat/sub-*_T1w.nii.gz`: the subject's original anatomical T1w image.
+- `dwi/sub-*_dwi.nii.gz`: the original diffusion-weighted image.
+- `dwi/sub-*_dwi.json`: acquisition metadata; it must contain
+  `PhaseEncodingDirection` (`j` or `j-`) and `TotalReadoutTime`.
+- `dwi/sub-*_dwi.bval`: the b-value associated with each DWI volume.
+- `dwi/sub-*_dwi.bvec`: the diffusion-gradient direction for each DWI volume.
 
-The stage also uses `images/diffusion_image.sif`,
-`images/synb0-disco_v3.0.sif`, and
-`templates_parcellations/MNI152_T1_2mm.nii.gz` from this repository.
+The stage also uses:
+
+- `images/diffusion_image.sif`: the container used to run HD-BET.
+- `images/synb0-disco_v3.0.sif`: the container used for distortion estimation.
+- `templates_parcellations/MNI152_T1_2mm.nii.gz`: the MNI registration
+  reference.
 
 Jobs run in each subject's `dwi/` directory. In the table below, `<sub>` is the
 subject directory name, for example `sub-001`.
 
 **Substep:** 1. T1 brain extraction  
-**Processing:** HD-BET brain extraction  
-**Inputs:** `../anat/<sub>_*_T1w.nii.gz`  
-**Outputs:** `../anat/<sub>_desc-hdbet_T1w.nii.gz`, `../anat/<sub>_desc-hdbet_T1w_bet.nii.gz`
+**Processing:** HD-BET brain extraction
+
+**Inputs:**
+
+- `../anat/<sub>_*_T1w.nii.gz`
+
+**Outputs:**
+
+- `../anat/<sub>_desc-hdbet_T1w.nii.gz`: the brain-extracted T1w image.
+- `../anat/<sub>_desc-hdbet_T1w_bet.nii.gz`: the binary T1w brain mask.
 
 **Substep:** 2. Denoising and Gibbs correction  
-**Processing:** Convert to MRtrix, denoise with extent 7, calculate residuals, remove Gibbs ringing  
-**Inputs:** Raw DWI, `.bval`, `.bvec`  
-**Outputs:** `Diff.mif`, `Diff_den_ext7.mif`, `noise_ext7.mif`, `residual_ext7.mif`, `Diff_den_gibbs_ext7.mif`, `Diff_den_gibbs.mif`
+**Processing:** Convert to MRtrix, denoise with extent 7, calculate residuals, remove Gibbs ringing
+
+**Inputs:**
+
+- Raw DWI file.
+- Raw `.bval` file.
+- Raw `.bvec` file.
+
+**Outputs:**
+
+- `Diff.mif`: the original DWI converted to MRtrix format with its gradients.
+- `Diff_den.mif`: the denoised DWI.
+- `noise.mif`: the noise estimate produced during denoising.
+- `residual.mif`: the difference between the original and denoised DWI,
+  used for QC.
+- `Diff_den_gibbs.mif`: the denoised DWI after Gibbs-ringing correction.
+- `Diff_den_gibbs.mif`: a link to `Diff_den_gibbs.mif` used by later
+  commands.
 
 **Substep:** 3. Synb0-DISCO preparation  
-**Processing:** Create acquisition parameters, mean b=0, b=0 mask, and Synb0 inputs  
-**Inputs:** Corrected DWI, DWI JSON, raw T1w  
-**Outputs:** `INPUTS/acqparams.txt`, `INPUTS/b0.nii.gz`, `INPUTS/T1.nii.gz`, `mean_b0_AP.*` or `mean_b0_PA.*`, `<sub>_desc-preproc_b0_mask.nii.gz`
+**Processing:** Create acquisition parameters, mean b=0, b=0 mask, and Synb0 inputs
+
+**Inputs:**
+
+- `Diff_den_gibbs.mif`
+- DWI JSON file.
+- Raw T1w file.
+
+**Outputs:**
+
+- `INPUTS/acqparams.txt`: phase-encoding and readout-time parameters for topup.
+- `INPUTS/b0.nii.gz`: the mean b=0 image supplied to Synb0-DISCO.
+- `INPUTS/T1.nii.gz`: the T1w image supplied to Synb0-DISCO.
+- `mean_b0_AP.mif`: the mean AP b=0 image in MRtrix format, created for an AP
+  acquisition.
+- `mean_b0_AP.nii.gz`: the same AP mean b=0 image in NIfTI format.
+- `mean_b0_PA.mif`: the mean PA b=0 image in MRtrix format, created for a PA
+  acquisition.
+- `mean_b0_PA.nii.gz`: the same PA mean b=0 image in NIfTI format.
+- `<sub>_desc-preproc_b0_mask.nii.gz`: the b=0 brain mask used by eddy. This is done on the Diffusion itself instead of the T1
 
 **Substep:** 4. Distortion estimation  
-**Processing:** Run Synb0-DISCO/topup preparation. Here an artificial inverted B0 image will be created to calculate the TOPUP coefficients that will be used for eddy correction  
-**Inputs:** `INPUTS/`  
-**Outputs:** `OUTPUTS/`, including `OUTPUTS/topup_fieldcoef.nii.gz` and the `OUTPUTS/topup` files used by eddy
+**Processing:** Run Synb0-DISCO/topup preparation. Here an artificial inverted B0 image will be created to calculate the TOPUP coefficients that will be used for eddy correction
+
+**Inputs:**
+
+- `INPUTS/`: the folder containing the acquisition parameters, b=0, and T1w
+  inputs prepared in substep 3.
+
+**Outputs:**
+
+- `OUTPUTS/topup_fieldcoef.nii.gz`: the estimated susceptibility-distortion
+  field coefficients.
+- `OUTPUTS/topup*`: the remaining topup outputs used by eddy.
 
 **Substep:** 5–6. Eddy preparation and correction  
-**Processing:** Create eddy index/input files; correct motion, distortion, and gradients  
-**Inputs:** DWI, acquisition parameters, b=0 mask, topup outputs  
-**Outputs:** `eddy_indices.txt`, `Diff_eddy_in.nii.gz`, `eddy_unwarped_images.nii.gz`, `eddy_unwarped_images.eddy_rotated_bvecs`, eddy QC files, `percentageOutliers.txt`, `Diff_preproc.mif`
+**Processing:** Create eddy index/input files; correct motion, distortion, and gradients
+
+**Inputs:**
+
+- `Diff_den_gibbs.mif` or `Diff.mif`.
+- `INPUTS/acqparams.txt`.
+- `<sub>_desc-preproc_b0_mask.nii.gz`.
+- `OUTPUTS/topup*`.
+
+**Outputs:**
+
+- `eddy_indices.txt`: maps each DWI volume to its acquisition-parameter row.
+- `Diff_eddy_in.nii.gz`: the DWI converted to NIfTI for eddy.
+- `eddy_unwarped_images.nii.gz`: the motion- and distortion-corrected DWI.
+- `eddy_unwarped_images.eddy_rotated_bvecs`: gradient directions rotated by
+  eddy to match the corrected data.
+- `eddy_unwarped_images.eddy_outlier_map`: eddy's slice-outlier map.
+- `percentageOutliers.txt`: the calculated percentage of outlier slices.
+- `Diff_preproc.mif`: the eddy-corrected DWI converted back to MRtrix format.
+- `../anat/<sub>_desc-hdbet_T1w_bet.mif`: the T1w brain mask converted to
+  MRtrix format.
 
 **Substep:** 7. Bias correction and final export  
-**Processing:** ANTs bias-field correction and gradient export  
-**Inputs:** `Diff_preproc.mif`  
-**Outputs:** `Diff_preproc_unbiased.mif`, `bias.mif`, `<sub>_desc-preproc_dwi.mif`, `.nii.gz`, `.bval`, and `.bvec`
+**Processing:** ANTs bias-field correction and gradient export
+
+**Inputs:**
+
+- `Diff_preproc.mif`
+
+**Outputs:**
+
+- `Diff_preproc_unbiased.mif`: the DWI after bias-field correction.
+- `bias.mif`: the estimated intensity bias field.
+- `<sub>_desc-preproc_dwi.mif`: the final preprocessed DWI in MRtrix format.
+- `<sub>_desc-preproc_dwi.nii.gz`: the final preprocessed DWI in NIfTI format.
+- `<sub>_desc-preproc_dwi.bval`: the final exported b-values.
+- `<sub>_desc-preproc_dwi.bvec`: the final exported, rotated gradient
+  directions.
 
 **Substep:** 8. DTI/FA  
-**Processing:** Fit the tensor and calculate FA  
-**Inputs:** Preprocessed DWI and T1 mask  
-**Outputs:** `<sub>_model-dti_tensor.mif`, `<sub>_model-dti_FA.mif`, `<sub>_model-dti_FA.nii.gz`
+**Processing:** Fit the tensor and calculate FA
+
+**Inputs:**
+
+- `<sub>_desc-preproc_dwi.mif`.
+- `../anat/<sub>_desc-hdbet_T1w_bet.mif`.
+
+**Outputs:**
+
+- `<sub>_model-dti_tensor.mif`: the fitted diffusion-tensor image.
+- `<sub>_model-dti_FA.mif`: the fractional-anisotropy map in MRtrix format.
+- `<sub>_model-dti_FA.nii.gz`: the fractional-anisotropy map in NIfTI format.
 
 **Substep:** 9. Registration/QC images  
-**Processing:** Direct b=0-to-MNI registration, FA-to-MNI via T1, and rigid T1-to-DWI registration  
-**Inputs:** Mean b=0, FA, brain-extracted T1w, MNI template  
-**Outputs:** `mean_b0_final.*`, `mean_b0_in_MNI.nii.gz`, `FA_in_MNI_direct.nii`, `FA_in_MNI_via_T1.nii`, registration transforms, `../anat/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz`
+**Processing:** Direct b=0-to-MNI registration, FA-to-MNI via T1, and rigid T1-to-DWI registration
+
+**Inputs:**
+
+- `<sub>_desc-preproc_dwi.mif`.
+- `<sub>_model-dti_FA.nii.gz`.
+- `../anat/<sub>_desc-hdbet_T1w.nii.gz`.
+- `templates_parcellations/MNI152_T1_2mm.nii.gz`.
+
+**Outputs:**
+
+- `mean_b0_final.mif`: the final mean b=0 reference image in MRtrix format.
+- `mean_b0_final.nii.gz`: the final mean b=0 reference image in NIfTI format.
+- `mean_b0_in_MNI.nii.gz`: the mean b=0 transformed to MNI space.
+- `FA_in_MNI_direct.nii`: FA transformed directly from DWI to MNI space.
+- `FA_in_MNI_via_T1.nii`: FA transformed to MNI space through the T1w
+  registration.
+- `b02standard.mat`: the direct b=0-to-MNI transform.
+- `T1_to_MNI_0GenericAffine.mat`: the affine T1w-to-MNI transform.
+- `T1_to_MNI_Warped.nii.gz`: the T1w image transformed to MNI space for QC.
+- `b0_to_T1_0GenericAffine.mat`: the rigid b=0-to-T1w transform.
+- `rigid_T1toDWI.mat` and `.txt`: the rigid T1w-to-DWI transform in FSL and
+  MRtrix formats.
+- `../anat/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz`: the T1w image positioned in
+  diffusion coordinates for QC and later overlays.
 
 The T1-to-DWI transform maps the anatomical image into diffusion coordinates
 without reslicing it to the lower-resolution DWI grid.
@@ -81,7 +196,7 @@ subject=sub-001
 denoising residuals can indicate removal of real signal:
 
 ```bash
-mrview Diff.mif -overlay.load residual_ext7.mif
+mrview Diff.mif -overlay.load residual.mif
 ```
 
 * Overlay the b=0 mask in all three planes. Check that brain tissue is retained

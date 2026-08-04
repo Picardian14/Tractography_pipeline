@@ -15,9 +15,28 @@ bash scripts/3_deconvolution/1_run_dwi2resp_jobs.sh /path/to/bids
 ```
 
 **Substep:** 1. Estimate each subject's response functions  
-**Processing:** Convert the preprocessed DWI to MRtrix, resample the T1 mask to the DWI grid, and run `dwi2response dhollander`  
-**Inputs:** `<sub>_desc-preproc_dwi.nii.gz`, `.bvec`, `.bval`; `../anat/<sub>_desc-hdbet_T1w_bet.nii.gz`  
-**Outputs:** `<sub>_desc-preproc_dwi.mif`, `<sub>_desc-resampled_bet.mif`, `<sub>_desc-dhollander_response-{wm,gm,csf}.txt`, `<sub>_desc-dhollander_voxels.mif` in `<sub>/dwi/`
+**Processing:** Convert the preprocessed DWI to MRtrix, resample the T1 mask to the DWI grid, and run `dwi2response dhollander`
+
+**Inputs:**
+
+- `<sub>_desc-preproc_dwi.nii.gz`: the final preprocessed diffusion image.
+- `<sub>_desc-preproc_dwi.bvec`: the corrected diffusion-gradient directions.
+- `<sub>_desc-preproc_dwi.bval`: the b-value of each DWI volume.
+- `../anat/<sub>_desc-hdbet_T1w_bet.nii.gz`: the T1w brain mask.
+
+**Outputs:**
+
+- `<sub>_desc-preproc_dwi.mif`: the preprocessed DWI and gradients in MRtrix
+  format.
+- `<sub>_desc-resampled_bet.mif`: the T1w brain mask resampled to the DWI grid.
+- `<sub>_desc-dhollander_response-wm.txt`: the subject-level white-matter
+  response function.
+- `<sub>_desc-dhollander_response-gm.txt`: the subject-level grey-matter
+  response function.
+- `<sub>_desc-dhollander_response-csf.txt`: the subject-level CSF response
+  function.
+- `<sub>_desc-dhollander_voxels.mif`: the WM, GM, and CSF voxels selected for
+  response estimation.
 
 ### 2. Average responses across subjects
 
@@ -32,9 +51,29 @@ sbatch scripts/3_deconvolution/2_responsemean.sh /path/to/bids
 ```
 
 The script reads every subject's individual WM, GM, and CSF response. It writes
-`desc-meanDhollander_response-{wm,gm,csf}.txt` at the BIDS root and copies them
-to each subject as
-`<sub>_desc-meanDhollander_response-{wm,gm,csf}.txt`.
+the mean responses at the BIDS root and copies them to every subject.
+
+**Substep:** 2. Average responses across subjects
+**Processing:** Run `responsemean` separately for the WM, GM, and CSF response
+functions
+
+**Inputs:**
+
+- Each subject's `<sub>_desc-dhollander_response-wm.txt`.
+- Each subject's `<sub>_desc-dhollander_response-gm.txt`.
+- Each subject's `<sub>_desc-dhollander_response-csf.txt`.
+
+**Outputs:**
+
+- `desc-meanDhollander_response-wm.txt`: the cohort-level mean WM response.
+- `desc-meanDhollander_response-gm.txt`: the cohort-level mean GM response.
+- `desc-meanDhollander_response-csf.txt`: the cohort-level mean CSF response.
+- `<sub>_desc-meanDhollander_response-wm.txt`: the subject-local copy of the
+  cohort-level mean WM response.
+- `<sub>_desc-meanDhollander_response-gm.txt`: the subject-local copy of the
+  cohort-level mean GM response.
+- `<sub>_desc-meanDhollander_response-csf.txt`: the subject-local copy of the
+  cohort-level mean CSF response.
 
 The common response sets the same FOD-amplitude scale across subjects; it does
 not remove individual anatomical or connectivity differences.
@@ -54,14 +93,54 @@ bash scripts/3_deconvolution/3_do_ss3_tlocal.sh /path/to/bids
 ```
 
 **Substep:** 3a. MSMT FOD calculation and normalization  
-**Processing:** `dwi2fod msmt_csd`, tissue-volume concatenation, `mtnormalise`  
-**Inputs:** Preprocessed DWI `.mif`, mean WM/GM/CSF responses, `<sub>_desc-resampled_bet.mif`  
-**Outputs:** `<sub>_model-msmt_fod-{wm,gm,csf}.mif`, `<sub>_model-msmt_vf.mif`, `<sub>_model-msmt_desc-normalized_fod-{wm,gm,csf}.mif`
+**Processing:** `dwi2fod msmt_csd`, tissue-volume concatenation, `mtnormalise`
+
+**Inputs:**
+
+- `<sub>_desc-preproc_dwi.mif`.
+- `<sub>_desc-meanDhollander_response-wm.txt`.
+- `<sub>_desc-meanDhollander_response-gm.txt`.
+- `<sub>_desc-meanDhollander_response-csf.txt`.
+- `<sub>_desc-resampled_bet.mif`.
+
+**Outputs:**
+
+- `<sub>_model-msmt_fod-wm.mif`: the MSMT white-matter FOD image.
+- `<sub>_model-msmt_fod-gm.mif`: the MSMT grey-matter compartment.
+- `<sub>_model-msmt_fod-csf.mif`: the MSMT CSF compartment.
+- `<sub>_model-msmt_vf.mif`: the combined CSF, GM, and WM volume-fraction
+  image used for inspection.
+- `<sub>_model-msmt_desc-normalized_fod-wm.mif`: the intensity-normalized WM
+  FOD used for tractography.
+- `<sub>_model-msmt_desc-normalized_fod-gm.mif`: the intensity-normalized GM
+  compartment.
+- `<sub>_model-msmt_desc-normalized_fod-csf.mif`: the intensity-normalized CSF
+  compartment.
 
 **Substep:** 3b. SS3T FOD calculation and normalization  
-**Processing:** `ss3t_csd_beta1`, tissue-volume concatenation, `mtnormalise`  
-**Inputs:** Preprocessed DWI `.mif`, mean WM/GM/CSF responses, `<sub>_desc-resampled_bet.mif`  
-**Outputs:** `<sub>_model-ss3t_fod-{wm,gm,csf}.mif`, `<sub>_model-ss3t_vf.mif`, `<sub>_model-ss3t_desc-normalized_fod-{wm,gm,csf}.mif`
+**Processing:** `ss3t_csd_beta1`, tissue-volume concatenation, `mtnormalise`
+
+**Inputs:**
+
+- `<sub>_desc-preproc_dwi.mif`.
+- `<sub>_desc-meanDhollander_response-wm.txt`.
+- `<sub>_desc-meanDhollander_response-gm.txt`.
+- `<sub>_desc-meanDhollander_response-csf.txt`.
+- `<sub>_desc-resampled_bet.mif`.
+
+**Outputs:**
+
+- `<sub>_model-ss3t_fod-wm.mif`: the SS3T white-matter FOD image.
+- `<sub>_model-ss3t_fod-gm.mif`: the SS3T grey-matter compartment.
+- `<sub>_model-ss3t_fod-csf.mif`: the SS3T CSF compartment.
+- `<sub>_model-ss3t_vf.mif`: the combined CSF, GM, and WM volume-fraction
+  image used for inspection.
+- `<sub>_model-ss3t_desc-normalized_fod-wm.mif`: the intensity-normalized WM
+  FOD used for tractography.
+- `<sub>_model-ss3t_desc-normalized_fod-gm.mif`: the intensity-normalized GM
+  compartment.
+- `<sub>_model-ss3t_desc-normalized_fod-csf.mif`: the intensity-normalized CSF
+  compartment.
 
 Both FOD routes use the same `<sub>_desc-resampled_bet.mif` mask.
 

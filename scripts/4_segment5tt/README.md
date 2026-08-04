@@ -15,24 +15,65 @@ bash scripts/4_segment5tt/1_run_tissue_jobs.sh /path/to/bids
 Jobs run in `<sub>/dwi/`.
 
 **Substep:** 1. Five-tissue segmentation  
-**Processing:** Convert T1w to MRtrix and run `5ttgen fsl`  
-**Inputs:** `../anat/<sub>_*_T1w.nii.gz`  
-**Outputs:** `<sub>_T1w.mif`, `<sub>_desc-nocoreg_5tt.mif`
+**Processing:** Convert T1w to MRtrix and run `5ttgen fsl`
+
+**Inputs:**
+
+- `../anat/<sub>_*_T1w.nii.gz`: the subject's original anatomical T1w image.
+
+**Outputs:**
+
+- `<sub>_T1w.mif`: the T1w image converted to MRtrix format.
+- `<sub>_desc-nocoreg_5tt.mif`: the five-tissue-type image in its original T1w
+  coordinates. The volume - has the Grey Matter segmentation
 
 **Substep:** 2. Registration reference  
 **Processing:** Extract and average b=0 volumes (Step could be skipped if already calculated)
-**Inputs:** `<sub>_desc-preproc_dwi.mif`  
-**Outputs:** `mean_b0_final.mif`, `mean_b0_final.nii.gz`
+
+**Inputs:**
+
+- `<sub>_desc-preproc_dwi.mif`: the final preprocessed DWI in MRtrix format.
+
+**Outputs:**
+
+- `mean_b0_final.mif`: the mean preprocessed b=0 image in MRtrix format.
+- `mean_b0_final.nii.gz`: the same mean b=0 image in NIfTI format, used as the
+  registration reference.
 
 **Substep:** 3. Rigid T1-to-DWI registration  
-**Processing:** FLIRT rigid registration and MRtrix transform conversion  
-**Inputs:** Unregistered 5TT volume 0 and mean b=0  
-**Outputs:** `<sub>_desc-nocoreg_5tt.nii.gz`, `<sub>_desc-nocoreg_5tt_vol0.nii.gz`, `<sub>_from-T1w_to-dwi_rigid.mat`, `.txt`
+**Processing:** FLIRT rigid registration and MRtrix transform conversion
+
+**Inputs:**
+
+- `<sub>_desc-nocoreg_5tt.mif`.
+- `mean_b0_final.nii.gz`.
+
+**Outputs:**
+
+- `<sub>_desc-nocoreg_5tt.nii.gz`: the unregistered 5TT image converted to
+  NIfTI format.
+- `<sub>_desc-nocoreg_5tt_vol0.nii.gz`: the first 5TT volume used as the moving
+  image for rigid registration.
+- `<sub>_from-T1w_to-dwi_rigid.mat`: the rigid transform in FSL format.
+- `<sub>_from-T1w_to-dwi_rigid.txt`: the same rigid transform converted to
+  MRtrix format.
 
 **Substep:** 4. ACT images  
-**Processing:** Transform the 5TT into diffusion coordinates while retaining its anatomical grid; derive the GM–WM interface  
-**Inputs:** Full 5TT and rigid transform  
-**Outputs:** `<sub>_desc-coreg_5tt.nii.gz`, `<sub>_desc-coreg_5tt.mif`, `<sub>_desc-coreg_gmwmi.mif`
+**Processing:** Transform the 5TT into diffusion coordinates while retaining its anatomical grid; derive the GM–WM interface
+
+**Inputs:**
+
+- `<sub>_desc-nocoreg_5tt.nii.gz`.
+- `<sub>_from-T1w_to-dwi_rigid.txt`.
+
+**Outputs:**
+
+- `<sub>_desc-coreg_5tt.nii.gz`: the 5TT image positioned in diffusion
+  coordinates while retaining its anatomical grid.
+- `<sub>_desc-coreg_5tt.mif`: the registered 5TT image in MRtrix format for
+  ACT.
+- `<sub>_desc-coreg_gmwmi.mif`: the GM–WM interface image used to seed
+  tractography.
 
 ## Visual quality control
 
