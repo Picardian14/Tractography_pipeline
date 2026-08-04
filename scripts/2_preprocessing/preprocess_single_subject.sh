@@ -121,16 +121,15 @@ if [ ! -f "Diff.mif" ]; then
     mrconvert "$DWI_FILE" Diff.mif -fslgrad "$BVEC_FILE" "$BVAL_FILE" -force
     #
     ## Denoise with extent 7 (similar to Siemens pipeline)
-    dwidenoise Diff.mif Diff_den_ext7.mif -extent 7 -noise noise_ext7.mif -force
+    dwidenoise Diff.mif Diff_den.mif -extent 7 -noise noise.mif -force
     #
     ## Calculate residuals for QC
-    mrcalc Diff.mif Diff_den_ext7.mif -subtract residual_ext7.mif -force
+    mrcalc Diff.mif Diff_den.mif -subtract residual.mif -force
     #
     ## Remove Gibbs ringing
-    mrdegibbs Diff_den_ext7.mif Diff_den_gibbs_ext7.mif -force
+    mrdegibbs Diff_den.mif Diff_den_gibbs.mif -force
     #
-    ## Create simpler name for processed data
-    ln -sf Diff_den_gibbs_ext7.mif Diff_den_gibbs.mif
+
     #
 else
     echo "  - Diff.mif already exists, skipping conversion and denoising."
