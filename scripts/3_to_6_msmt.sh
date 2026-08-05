@@ -8,6 +8,9 @@
 
 set -euo pipefail
 
+workflow_start_epoch=$(date +%s)
+workflow_start_timestamp=$(date '+%Y-%m-%d %H:%M:%S %z')
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -19,6 +22,8 @@ fi
 BIDS_ROOT="$(readlink -f "$1")"
 OUTPUT_DIR="${OUTPUT_DIR:-${PIPELINE_ROOT}/outputs}"
 FREESURFER_SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR:-${PIPELINE_ROOT}/freesurfer}"
+workflow_timing_log="${WORKFLOW_TIMING_LOG:-${OUTPUT_DIR}/3_to_6_msmt-${workflow_start_epoch}.timing.log}"
+workflow_timing_log=$(readlink -m "$workflow_timing_log")
 
 mkdir -p "$OUTPUT_DIR" "$FREESURFER_SUBJECTS_DIR"
 
@@ -44,6 +49,9 @@ if ! command -v sbatch >/dev/null 2>&1; then
     exit 1
 fi
 
+printf 'MSMT workflow started: %s\n' "$workflow_start_timestamp" | tee "$workflow_timing_log"
+echo "Workflow timing log: $workflow_timing_log"
+
 # Print progress to stderr so command substitution receives only the job ID.
 submit_job() {
     local description=$1
@@ -62,6 +70,7 @@ submit_job() {
 subjects=()
 response_ids=()
 declare -A response_id tissue_id recon_id
+parcellation_count=0
 
 for subject_dir in "$BIDS_ROOT"/sub-*; do
     [ -d "$subject_dir/dwi" ] || continue
@@ -141,7 +150,7 @@ for subject_id in "${subjects[@]}"; do
         "$tckgen_job" "$subject_dir")
 
     submit_job "MSMT parcellation for $subject_id" \
-        --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT" \
+        --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT",WORKFLOW_START_EPOCH="$workflow_start_epoch",WORKFLOW_TIMING_LOG="$workflow_timing_log" \
         --dependency="afterok:${tck_id}:${recon_id[$subject_id]}" \
         --job-name="parcellate-msmt-$subject_id" \
         --output="$OUTPUT_DIR/${subject_id}-parcellate-msmt-%j.out.txt" \
@@ -149,7 +158,13 @@ for subject_id in "${subjects[@]}"; do
         --chdir="$subject_dir/dwi" \
         --mem=32G --time=24:00:00 \
         "$parcellate_job" "$subject_dir" >/dev/null
+    ((parcellation_count += 1))
 done
 
 echo "MSMT workflow submitted for ${#subjects[@]} subject(s)."
 echo "Cohort response-mean barrier job: $mean_id"
+if ((parcellation_count > 0)); then
+    echo "Successful parcellation completion(s) will be appended to $workflow_timing_log."
+else
+    printf 'No MSMT parcellation jobs were submitted.\n' | tee -a "$workflow_timing_log"
+fi

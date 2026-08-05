@@ -57,6 +57,15 @@ outputs remain in `FREESURFER_SUBJECTS_DIR`.
 The preprocessing script reads `PhaseEncodingDirection` and `TotalReadoutTime`
 from each DWI JSON sidecar.
 
+## More Explanations
+
+Each folder of the pipeline contains README files that explain the usage of the scripts as well as QC steps through visualization
+for this be sure to have MRtrix installed or loaded locally
+
+```bash
+module load MRtrix
+```
+
 ## Preparing HCP Recommended data
 
 After organizing HCP Recommended archives, prepare their reusable masks,

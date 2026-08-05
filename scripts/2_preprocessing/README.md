@@ -29,7 +29,7 @@ Jobs run in each subject's `dwi/` directory. In the table below, `<sub>` is the
 subject directory name, for example `sub-001`.
 
 **Substep:** 1. T1 brain extraction  
-**Processing:** HD-BET brain extraction
+**Processing:** HD-BET brain extraction. This tool uses Deep Learning to make an accurate anatomical T1. At order stages a mask is calculated directly on the diffusion to avoid resampling issues. 
 
 **Inputs:**
 
@@ -41,7 +41,7 @@ subject directory name, for example `sub-001`.
 - `../anat/<sub>_desc-hdbet_T1w_bet.nii.gz`: the binary T1w brain mask.
 
 **Substep:** 2. Denoising and Gibbs correction  
-**Processing:** Convert to MRtrix, denoise with extent 7, calculate residuals, remove Gibbs ringing
+**Processing:** Convert to MRtrix, denoise with extent 7, calculate residuals, remove Gibbs ringing. Gibbs rings are the parallel shaded thick lines that appear in the image. The result of this cleaining can be observed in the QC steps described below
 
 **Inputs:**
 
@@ -61,7 +61,7 @@ subject directory name, for example `sub-001`.
   commands.
 
 **Substep:** 3. Synb0-DISCO preparation  
-**Processing:** Create acquisition parameters, mean b=0, b=0 mask, and Synb0 inputs
+**Processing:** Create acquisition parameters, mean b=0, b=0 mask, and Synb0 inputs. Synb0 is a tool used in the next steps that requres specific Input setup, which is what is done in this step
 
 **Inputs:**
 
@@ -97,7 +97,7 @@ subject directory name, for example `sub-001`.
 - `OUTPUTS/topup*`: the remaining topup outputs used by eddy.
 
 **Substep:** 5–6. Eddy preparation and correction  
-**Processing:** Create eddy index/input files; correct motion, distortion, and gradients
+**Processing:** Create eddy index/input files; correct motion, distortion, and gradients. Check Phase Encoding Direction distortion for more info on this
 
 **Inputs:**
 
@@ -120,7 +120,7 @@ subject directory name, for example `sub-001`.
   MRtrix format.
 
 **Substep:** 7. Bias correction and final export  
-**Processing:** ANTs bias-field correction and gradient export
+**Processing:** ANTs bias-field correction and gradient export. Bias field corrections removes imhomogeneities in brighness. If this step worstens the image you can skip it. 
 
 **Inputs:**
 
@@ -179,11 +179,6 @@ subject directory name, for example `sub-001`.
 
 The T1-to-DWI transform maps the anatomical image into diffusion coordinates
 without reslicing it to the lower-resolution DWI grid.
-
-
-```bash
-bash scripts/2_preprocessing/prepare_hcp_for_processing.sh /path/to/hcp-bids
-```
 
 ## Visual quality control
 

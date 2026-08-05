@@ -38,7 +38,7 @@ FREESURFER_SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR:-${PIPELINE_ROOT}/freesurfer}
 subject_dir=$1
 subject_id=$(basename "$subject_dir")
 t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
-    -name "${subject_id}*_T1w.nii.gz" \
+    -name "${subject_id}_T1w.nii.gz" \
     ! -name "${subject_id}_desc-hdbet_T1w.nii.gz" \
     ! -name "${subject_id}_desc-hdbet_T1w_mask.nii.gz" \
     -print -quit)

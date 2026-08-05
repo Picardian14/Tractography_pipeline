@@ -1,3 +1,0 @@
-Job Doing sub-100408
-Model: MSMT-CSD
-Current working directory: /network/iss/cohen/data/Ivan/HCP_YOUNG_ADULTS_UNRELATED_TEST/sub-100408/dwi

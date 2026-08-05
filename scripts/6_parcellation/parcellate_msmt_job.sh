@@ -16,6 +16,19 @@ report_processing_time() {
         "${subject_folder:-$(basename "$0")}" \
         "$((elapsed / 3600))" "$(((elapsed % 3600) / 60))" "$((elapsed % 60))" \
         "$exit_status"
+
+    if [ "$exit_status" -eq 0 ] && [ -n "${WORKFLOW_START_EPOCH:-}" ] && [ -n "${WORKFLOW_TIMING_LOG:-}" ]; then
+        local workflow_end_epoch workflow_elapsed workflow_end_timestamp completion_message
+        workflow_end_epoch=$(date +%s)
+        workflow_elapsed=$((workflow_end_epoch - WORKFLOW_START_EPOCH))
+        workflow_end_timestamp=$(date '+%Y-%m-%d %H:%M:%S %z')
+        printf -v completion_message \
+            'MSMT parcellation completed successfully for %s: %s; elapsed since workflow start: %02d:%02d:%02d (HH:MM:SS)' \
+            "${subject_folder:-$(basename "$0")}" "$workflow_end_timestamp" \
+            "$((workflow_elapsed / 3600))" "$(((workflow_elapsed % 3600) / 60))" \
+            "$((workflow_elapsed % 60))"
+        printf '%s\n' "$completion_message" | tee -a "$WORKFLOW_TIMING_LOG"
+    fi
 }
 trap report_processing_time EXIT
 

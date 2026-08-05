@@ -49,4 +49,4 @@ dwi2response dhollander "${subject}_desc-preproc_dwi.mif" \
     "${subject}_desc-dhollander_response-gm.txt" \
     "${subject}_desc-dhollander_response-csf.txt" \
     -voxels "${subject}_desc-dhollander_voxels.mif" \
-    -nthreads 16 -force
+    -nthreads 4 -force
