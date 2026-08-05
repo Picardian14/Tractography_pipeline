@@ -59,6 +59,15 @@ echo "Current working directory: $(pwd)"
 
 sift_weights="${subject_folder}_model-msmt_sift2-weights.txt"
 tracks="${subject_folder}_model-msmt_tractogram-10M.tck"
+
+# If the files already exist, we assume the job has already been run successfully and skip it.
+if [ -f "${subject_folder}_model-msmt_atlas-${ATLAS_LABEL_NAME}_connectome.csv" ] && \
+   [ -f "${subject_folder}_model-msmt_atlas-${ATLAS_LABEL_NAME}_assignments.csv" ]; then
+    echo "All output files already exist. Skipping parcellation for $subject_dir."
+    exit 0
+fi
+
+
 if [ -f "$sift_weights" ]; then
 
     mri_surf2surf --srcsubject fsaverage --trgsubject $subject_folder --hemi lh \

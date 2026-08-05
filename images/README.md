@@ -10,7 +10,7 @@ Your data stay in the normal BIDS folders outside the container.
 
 ## Images used by the pipeline
 
-- `diffusion_image.sif`: used for HD-BET and containerized FreeSurfer.
+- `diffusion_image.sif`: used for HD-BET, SS3T-CSD, and containerized FreeSurfer.
 - `synb0-disco_v3.0.sif`: used for Synb0-DISCO.
 
 Check that Singularity and the required image are available before processing:

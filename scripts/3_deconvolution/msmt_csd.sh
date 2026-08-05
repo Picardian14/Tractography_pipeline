@@ -40,6 +40,16 @@ if [ ! -f "$dwi_file" ]; then
     exit 1
 fi
 
+# If the files already exist, we assume the job has already been run successfully and skip it.
+if [ -f "${subject}_model-msmt_fod-wm.mif" ] && [ -f "${subject}_model-msmt_fod-gm.mif" ] && \
+   [ -f "${subject}_model-msmt_fod-csf.mif" ] && [ -f "${subject}_model-msmt_vf.mif" ] && \
+   [ -f "${subject}_model-msmt_desc-normalized_fod-wm.mif" ] && \
+   [ -f "${subject}_model-msmt_desc-normalized_fod-gm.mif" ] && \
+   [ -f "${subject}_model-msmt_desc-normalized_fod-csf.mif" ]; then
+    echo "All output files already exist. Skipping msmt_csd for $subject_dir."
+    exit 0
+fi
+
 dwi2fod msmt_csd "$dwi_file" \
     "$wm_response" "${subject}_model-msmt_fod-wm.mif" \
     "$gm_response" "${subject}_model-msmt_fod-gm.mif" \

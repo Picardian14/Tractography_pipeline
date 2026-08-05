@@ -4,6 +4,11 @@ if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
     exit 2
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+SINGULARITY_IMAGE="${PIPELINE_ROOT}/images/diffusion_image.sif"
+NTHREADS="${NTHREADS:-$(nproc)}"
+
 BIDS_ROOT="$(readlink -f "$1")"
 cd "$BIDS_ROOT" || exit 1
 for subject_dir in sub-*/; do
@@ -14,7 +19,16 @@ for subject_dir in sub-*/; do
 		cd "$subject_dir/dwi" || continue
             if [ -f "${subject}_desc-preproc_dwi.nii.gz" ]; then
 				if [ -f "${subject}_desc-preproc_dwi.mif" ]; then
-					ss3t_csd_beta1 "${subject}_desc-preproc_dwi.mif" "${subject}_desc-meanDhollander_response-wm.txt" "${subject}_model-ss3t_fod-wm.mif" "${subject}_desc-meanDhollander_response-gm.txt" "${subject}_model-ss3t_fod-gm.mif" "${subject}_desc-meanDhollander_response-csf.txt" "${subject}_model-ss3t_fod-csf.mif" -mask "${subject}_desc-resampled_bet.mif" -nthreads 32 -force
+					dwi_bind_dir=$(pwd -P)
+					if ! singularity exec --bind "${dwi_bind_dir}:/dwi" "$SINGULARITY_IMAGE" \
+						ss3t_csd_beta1 "/dwi/${subject}_desc-preproc_dwi.mif" \
+						"/dwi/${subject}_desc-meanDhollander_response-wm.txt" "/dwi/${subject}_model-ss3t_fod-wm.mif" \
+						"/dwi/${subject}_desc-meanDhollander_response-gm.txt" "/dwi/${subject}_model-ss3t_fod-gm.mif" \
+						"/dwi/${subject}_desc-meanDhollander_response-csf.txt" "/dwi/${subject}_model-ss3t_fod-csf.mif" \
+						-mask "/dwi/${subject}_desc-resampled_bet.mif" -nthreads "$NTHREADS" -force; then
+						echo "ERROR: ss3t_csd_beta1 failed for $subject" >&2
+						exit 1
+					fi
 					mrconvert -coord 3 0 "${subject}_model-ss3t_fod-wm.mif" - | mrcat "${subject}_model-ss3t_fod-csf.mif" "${subject}_model-ss3t_fod-gm.mif" - "${subject}_model-ss3t_vf.mif" -force
 					mtnormalise "${subject}_model-ss3t_fod-wm.mif" "${subject}_model-ss3t_desc-normalized_fod-wm.mif" "${subject}_model-ss3t_fod-gm.mif" "${subject}_model-ss3t_desc-normalized_fod-gm.mif" "${subject}_model-ss3t_fod-csf.mif" "${subject}_model-ss3t_desc-normalized_fod-csf.mif" -mask "${subject}_desc-resampled_bet.mif" -force
 				fi

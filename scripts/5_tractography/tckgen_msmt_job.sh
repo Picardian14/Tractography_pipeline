@@ -44,7 +44,13 @@ act_file="${subject_id}_desc-coreg_5tt.mif"
 seed_file="${subject_id}_desc-coreg_gmwmi.mif"
 tracks="${subject_id}_model-msmt_tractogram-10M.tck"
 
-if [ -f "$wm_fod" ]; then
+# If the files already exist, we assume the job has already been run successfully and skip it.
+if [ -f "$tracks" ] && [ -f "${subject_id}_model-msmt_tractogram-200k.tck" ] && [ -f "${subject_id}_model-msmt_sift2-weights.txt" ] && [ -f "${subject_id}_model-msmt_sift2-mu.txt" ] && [ -f "${subject_id}_model-msmt_sift2-coeffs.txt" ]; then
+    echo "All output files already exist. Skipping tckgen_msmt_job for $subject_dir."
+    exit 0
+fi
+
+if [ -f "$wm_fod" ]; then    
     tckgen -act "$act_file" -backtrack -seed_gmwmi "$seed_file" \
         -nthreads "${SLURM_CPUS_PER_TASK:-8}" -select 10000000 \
         "$wm_fod" "$tracks" -force

@@ -66,6 +66,11 @@ run_recon_cmd() {
     fi
 }
 
+# If the relevant surface files already exist, we assume the job has already been run successfully and skip it.
+if [ -f "${SUBJECTS_DIR}/${subject_id}/surf/lh.white" ] && [ -f "${SUBJECTS_DIR}/${subject_id}/surf/rh.white" ] && [ -f "${SUBJECTS_DIR}/${subject_id}/surf/lh.pial" ] && [ -f "${SUBJECTS_DIR}/${subject_id}/surf/rh.pial" ]; then
+    echo "All output files already exist. Skipping recon-all for $subject_dir."
+    exit 0
+fi
 
 if [ ! -d "$SUBJECTS_DIR/$subject_id" ]; then
     echo "Subject folder $SUBJECTS_DIR/$subject_id does not exist. Running recon-all with -i."

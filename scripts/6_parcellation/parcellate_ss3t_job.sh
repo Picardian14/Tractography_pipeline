@@ -46,6 +46,13 @@ if [ ! -f "$sift_weights" ]; then
     exit 1
 fi
 
+# If the files already exist, we assume the job has already been run successfully and skip it.
+if [ -f "${subject_folder}_model-ss3t_atlas-${ATLAS_LABEL_NAME}_connectome.csv" ] && \
+   [ -f "${subject_folder}_model-ss3t_atlas-${ATLAS_LABEL_NAME}_assignments.csv" ]; then
+    echo "All output files already exist. Skipping parcellation for $subject_dir."
+    exit 0
+fi
+
 mri_surf2surf --srcsubject fsaverage --trgsubject "$subject_folder" --hemi lh \
     --sval-annot "$ATLAS_DIR/lh.${ATLAS_LABEL_NAME}.annot" \
     --tval "$SUBJECTS_DIR/$subject_folder/label/lh.${ATLAS_LABEL_NAME}.annot"

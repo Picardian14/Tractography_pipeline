@@ -1,0 +1,171 @@
+#!/bin/bash
+#
+# Submit stages 3 (deconvolution) through 6 (parcellation) as one ss3t-CSD
+# Slurm workflow.
+#
+# Usage:
+#   ./scripts/3_to_6_ss3t.sh /absolute/path/to/bids
+
+set -euo pipefail
+
+workflow_start_epoch=$(date +%s)
+workflow_start_timestamp=$(date '+%Y-%m-%d %H:%M:%S %z')
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids" >&2
+    exit 2
+fi
+
+BIDS_ROOT="$(readlink -f "$1")"
+OUTPUT_DIR="${OUTPUT_DIR:-${PIPELINE_ROOT}/outputs}"
+FREESURFER_SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR:-${PIPELINE_ROOT}/freesurfer}"
+workflow_timing_log="${WORKFLOW_TIMING_LOG:-${OUTPUT_DIR}/3_to_6_ss3t-${workflow_start_epoch}.timing.log}"
+workflow_timing_log=$(readlink -m "$workflow_timing_log")
+
+mkdir -p "$OUTPUT_DIR" "$FREESURFER_SUBJECTS_DIR"
+
+dwi2response_job="${DWI2RESPONSE_JOB:-${SCRIPT_DIR}/3_deconvolution/dwi2response.sh}"
+responsemean_job="${RESPONSEMEAN_JOB:-${SCRIPT_DIR}/3_deconvolution/2_responsemean.sh}"
+ss3t_csd_job="${SS3T_CSD_JOB:-${SCRIPT_DIR}/3_deconvolution/ss3t_csd.sh}"
+tissue_job="${TISSUE_JOB:-${SCRIPT_DIR}/4_segment5tt/tissue_job.sh}"
+tckgen_job="${TCKGEN_SS3T_JOB:-${SCRIPT_DIR}/5_tractography/tckgen_ss3t_job.sh}"
+recon_all_job="${RECON_ALL_JOB:-${SCRIPT_DIR}/6_parcellation/recon_all_job.sh}"
+parcellate_job="${PARCELLATE_SS3T_JOB:-${SCRIPT_DIR}/6_parcellation/parcellate_ss3t_job.sh}"
+
+for job_script in \
+    "$dwi2response_job" "$responsemean_job" "$ss3t_csd_job" "$tissue_job" \
+    "$tckgen_job" "$recon_all_job" "$parcellate_job"; do
+    if [ ! -f "$job_script" ]; then
+        echo "Job script not found: $job_script" >&2
+        exit 1
+    fi
+done
+
+if ! command -v sbatch >/dev/null 2>&1; then
+    echo "sbatch is not available in PATH." >&2
+    exit 1
+fi
+
+printf 'ss3t workflow started: %s\n' "$workflow_start_timestamp" | tee "$workflow_timing_log"
+echo "Workflow timing log: $workflow_timing_log"
+
+# Print progress to stderr so command substitution receives only the job ID.
+submit_job() {
+    local description=$1
+    shift
+    local submission job_id
+    submission=$(sbatch --parsable "$@")
+    job_id=${submission%%;*}
+    if [[ ! "$job_id" =~ ^[0-9]+([_.][0-9]+)?$ ]]; then
+        echo "Could not parse Slurm job ID from: $submission" >&2
+        exit 1
+    fi
+    echo "Submitted ${description}: ${job_id}" >&2
+    printf '%s\n' "$job_id"
+}
+
+subjects=()
+response_ids=()
+declare -A response_id tissue_id recon_id
+parcellation_count=0
+
+for subject_dir in "$BIDS_ROOT"/sub-*; do
+    [ -d "$subject_dir/dwi" ] || continue
+    subject_id=$(basename "$subject_dir")
+    subjects+=("$subject_id")
+
+    response_id["$subject_id"]=$(submit_job "dwi2response for $subject_id" \
+        --job-name="dwi2resp-$subject_id" \
+        --output="$OUTPUT_DIR/${subject_id}-dwi2resp-%j.out.txt" \
+        --error="$OUTPUT_DIR/${subject_id}-dwi2resp-%j.err.txt" \
+        --chdir="$subject_dir/dwi" \
+        "$dwi2response_job" "$subject_dir")
+    response_ids+=("${response_id[$subject_id]}")
+
+    # Tissue segmentation needs the .mif produced during dwi2response, but it
+    # does not need to wait for the cohort response mean.
+    if [ -d "$subject_dir/anat" ]; then
+        tissue_id["$subject_id"]=$(submit_job "5TT segmentation for $subject_id" \
+            --dependency="afterok:${response_id[$subject_id]}" \
+            --job-name="5tt-$subject_id" \
+            --output="$OUTPUT_DIR/${subject_id}-5tt-%j.out.txt" \
+            --error="$OUTPUT_DIR/${subject_id}-5tt-%j.err.txt" \
+            --chdir="$subject_dir/dwi" \
+            --mem=16G --time=48:00:00 \
+            "$tissue_job" "$subject_dir")
+
+        # FreeSurfer is independent of deconvolution and can run immediately.
+        recon_id["$subject_id"]=$(submit_job "recon-all for $subject_id" \
+            --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT" \
+            --job-name="recon_all-$subject_id" \
+            --output="$OUTPUT_DIR/${subject_id}-recon_all-%j.out.txt" \
+            --error="$OUTPUT_DIR/${subject_id}-recon_all-%j.err.txt" \
+            --chdir="$subject_dir/anat" \
+            --mem=64G --time=24:00:00 \
+            "$recon_all_job" "$subject_dir")
+    fi
+done
+
+if [ "${#subjects[@]}" -eq 0 ]; then
+    echo "No subjects with a dwi directory found under $BIDS_ROOT." >&2
+    exit 1
+fi
+
+response_dependency=$(IFS=:; echo "${response_ids[*]}")
+mean_id=$(submit_job "cohort response mean" \
+    --dependency="afterok:${response_dependency}" \
+    --job-name="responsemean-ss3t" \
+    --output="$OUTPUT_DIR/responsemean-ss3t-%j.out.txt" \
+    --error="$OUTPUT_DIR/responsemean-ss3t-%j.err.txt" \
+    --chdir="$BIDS_ROOT" \
+    --cpus-per-task=1 --mem=4G --time=01:00:00 \
+    "$responsemean_job" "$BIDS_ROOT")
+
+for subject_id in "${subjects[@]}"; do
+    subject_dir="$BIDS_ROOT/$subject_id"
+
+    ss3t_id=$(submit_job "ss3t-CSD for $subject_id" \
+        --dependency="afterok:${mean_id}" \
+        --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT" \
+        --job-name="ss3t-csd-$subject_id" \
+        --output="$OUTPUT_DIR/${subject_id}-ss3t-csd-%j.out.txt" \
+        --error="$OUTPUT_DIR/${subject_id}-ss3t-csd-%j.err.txt" \
+        --chdir="$subject_dir/dwi" \
+        "$ss3t_csd_job" "$subject_dir")
+
+    if [ -z "${tissue_id[$subject_id]:-}" ]; then
+        echo "Skipping tractography/parcellation for $subject_id: no anat directory." >&2
+        continue
+    fi
+
+    tck_id=$(submit_job "ss3t tractography for $subject_id" \
+        --dependency="afterok:${ss3t_id}:${tissue_id[$subject_id]}" \
+        --job-name="tck-ss3t-$subject_id" \
+        --output="$OUTPUT_DIR/${subject_id}-tck-ss3t-%j.out.txt" \
+        --error="$OUTPUT_DIR/${subject_id}-tck-ss3t-%j.err.txt" \
+        --chdir="$subject_dir/dwi" \
+        --mem=16G --time=12:00:00 \
+        "$tckgen_job" "$subject_dir")
+
+    submit_job "ss3t parcellation for $subject_id" \
+        --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT",WORKFLOW_START_EPOCH="$workflow_start_epoch",WORKFLOW_TIMING_LOG="$workflow_timing_log" \
+        --dependency="afterok:${tck_id}:${recon_id[$subject_id]}" \
+        --job-name="parcellate-ss3t-$subject_id" \
+        --output="$OUTPUT_DIR/${subject_id}-parcellate-ss3t-%j.out.txt" \
+        --error="$OUTPUT_DIR/${subject_id}-parcellate-ss3t-%j.err.txt" \
+        --chdir="$subject_dir/dwi" \
+        --mem=32G --time=24:00:00 \
+        "$parcellate_job" "$subject_dir" >/dev/null
+    ((parcellation_count += 1))
+done
+
+echo "ss3t workflow submitted for ${#subjects[@]} subject(s)."
+echo "Cohort response-mean barrier job: $mean_id"
+if ((parcellation_count > 0)); then
+    echo "Successful parcellation completion(s) will be appended to $workflow_timing_log."
+else
+    printf 'No ss3t parcellation jobs were submitted.\n' | tee -a "$workflow_timing_log"
+fi
