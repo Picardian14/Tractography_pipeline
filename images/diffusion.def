@@ -147,7 +147,7 @@ From: ubuntu:22.04
     EIGEN_CFLAGS="-isystem /opt/eigen-3.3.9" \
         CC=/usr/bin/gcc-11 \
         CXX=/usr/bin/g++-11 \
-        ./configure -nogui
+        ./configure
     grep -F "eigen_cflags = [ '-isystem', '/opt/eigen-3.3.9'" config
     ./build
     /opt/MRtrix3Tissue/bin/mrinfo -version

@@ -89,7 +89,7 @@ bash scripts/3_deconvolution/3_do_msmt_csd.sh /path/to/bids
 For clinical single-shell data:
 
 ```bash
-bash scripts/3_deconvolution/3_do_ss3_tlocal.sh /path/to/bids
+bash scripts/3_deconvolution/3_do_ss3t_local.sh /path/to/bids
 ```
 
 **Substep:** 3a. MSMT FOD calculation and normalization  
@@ -144,6 +144,33 @@ bash scripts/3_deconvolution/3_do_ss3_tlocal.sh /path/to/bids
 
 Both FOD routes use the same `<sub>_desc-resampled_bet.mif` mask.
 
+## Cleaning Stage 3 outputs
+
+Preview all Stage 3 files that would be removed:
+
+```bash
+bash scripts/3_deconvolution/cleanup.sh --dry-run /path/to/bids
+```
+
+Run the cleanup and confirm by typing `delete` after reviewing the list:
+
+```bash
+bash scripts/3_deconvolution/cleanup.sh /path/to/bids
+```
+
+Use `--yes` to skip the prompt in an automated workflow. By default the
+script removes response-estimation files, mean responses, and both SS3T and
+MSMT-CSD FOD outputs. To rerun only one part, select `--scope response`,
+`responsemean`, `ss3t`, or `msmt`. For example:
+
+```bash
+bash scripts/3_deconvolution/cleanup.sh --scope ss3t /path/to/bids
+```
+
+The cleanup uses explicit Stage 3 filenames. It does not remove the original
+preprocessed NIfTI, b-value, b-vector, or anatomical files, later-stage
+tractography/parcellation products, or Slurm logs.
+
 ## Visual quality control
 
 Run the examples from one subject's `dwi/` directory. Set `model=ss3t` for
@@ -163,7 +190,7 @@ mrview "${subject}_desc-preproc_dwi.mif" \
 
 * Inspect all volumes of the response-voxel image. **WM, GM, and CSF selections
 should fall in the corresponding tissues**, and lesions should not dominate the
-selection:
+selection: Red: CSF voxels; Green: Grey Matter voxels; Blue: White Matter voxels. Make sure that these colors are located where they should be; for example, the red voxels should be within the ventricles
 
 ```bash
 mrview "${subject}_desc-preproc_dwi.mif" \
@@ -171,7 +198,11 @@ mrview "${subject}_desc-preproc_dwi.mif" \
 ```
 
 * Inspect normalized WM FOD glyphs on the T1 registered to diffusion space. Zoom
-into lesions and increase the glyph scale when necessary for better visualization:
+into lesions and increase the glyph scale when necessary for better visualization: 
+In MRview presss the top right tool button and select ODF display. 
+Increase the scale input to 3 or 4. You should see bigger glyphs.
+These should follow the directions of the tracts and have low anisotrpic shape for GM and CSF.
+The additional options below are simply useful if iterating over subjects to control how the display appears.
 
 ```bash
 mrview ../anat/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz \

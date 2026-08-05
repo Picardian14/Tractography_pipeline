@@ -84,7 +84,7 @@ style in `check_images.sh`.
 subject=sub-001
 ```
 
-Compare the unregistered and registered 5TT images on the mean b=0:
+Compare the unregistered and registered 5TT images on the mean b=0. The idea here is to verify that there there is a displacement between registered and non registered versions:
 
 ```bash
 mrview "${subject}_desc-mean_b0.mif" \

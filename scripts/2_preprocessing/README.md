@@ -191,7 +191,7 @@ subject=sub-001
 denoising residuals can indicate removal of real signal:
 
 ```bash
-mrview Diff.mif -overlay.load residual.mif
+mrview residual.mif
 ```
 
 * Overlay the b=0 mask in all three planes. Check that brain tissue is retained

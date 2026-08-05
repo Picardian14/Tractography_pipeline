@@ -84,12 +84,4 @@ or systematically noisy, fragmented, or sharp trajectories. If off-brain
 streamlines are present, check the FOD mask, 5TT registration, GMWMI, and
 distortion correction upstream.
 
-The SIFT2 weights must correspond exactly to the 10M tractogram. Compare the
-streamline count with the number of weight lines:
-
-```bash
-tckinfo "${subject}_model-${model}_tractogram-10M.tck" -count
-wc -l "${subject}_model-${model}_sift2-weights.txt"
-```
-
 Do not use weights from a different tractogram or from the 200k QC subset.
