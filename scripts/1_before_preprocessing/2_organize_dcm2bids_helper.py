@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Organize dcm2bids-helper output into a small BIDS-compatible layout.
 
-The script processes every ``sub-*`` directory below ``bids_root`` independently.
-It identifies T1w and DWI acquisitions from their dcm2niix JSON metadata and:
+The script processes every ``sub-*`` directory below ``bids_root`` independently
+and writes into ``ses-1`` by default. It identifies T1w and DWI acquisitions
+from their dcm2niix JSON metadata and:
 
 * gives T1w and the original diffusion series standard names in ``anat/`` and
   ``dwi/``; and
@@ -166,12 +167,13 @@ def append_moves(
 
 
 def required_output_exists(
-    subject_dir: Path,
+    session_dir: Path,
+    subject_id: str,
     suffix: str,
     extensions: tuple[str, ...],
 ) -> bool:
     datatype = "dwi" if suffix == "dwi" else "anat"
-    prefix = subject_dir / datatype / f"{subject_dir.name}_{suffix}"
+    prefix = session_dir / datatype / f"{subject_id}_{suffix}"
     return all(Path(f"{prefix}{extension}").is_file() for extension in extensions)
 
 
@@ -184,23 +186,49 @@ def cleanup_paths(subject_dir: Path) -> list[Path]:
     return [path for path in candidates if path.exists()]
 
 
-def plan_subject(subject_dir: Path) -> tuple[list[tuple[Path, Path]], list[Path], int]:
+def plan_subject(
+    subject_dir: Path,
+    session_label: str,
+) -> tuple[list[tuple[Path, Path]], list[Path], int]:
     helper = find_helper(subject_dir)
     series = read_series(helper) if helper else []
     acquisitions = classify_series(series)
     subject_id = subject_dir.name
-    moves: list[tuple[Path, Path]] = []
+    session_dir = subject_dir / f"ses-{session_label}"
+
+    # Migrate output made by the previous sessionless version of this script.
+    moves: list[tuple[Path, Path]] = [
+        (source, session_dir / datatype / source.relative_to(legacy_dir))
+        for datatype in ("anat", "dwi", "other")
+        for legacy_dir in (subject_dir / datatype,)
+        if legacy_dir.is_dir()
+        for source in sorted(legacy_dir.rglob("*"))
+        if source.is_file()
+    ]
+    planned_destinations = {destination for _, destination in moves}
+
+    def required_available(suffix: str, extensions: tuple[str, ...]) -> bool:
+        datatype = "dwi" if suffix == "dwi" else "anat"
+        prefix = session_dir / datatype / f"{subject_id}_{suffix}"
+        expected = {Path(f"{prefix}{extension}") for extension in extensions}
+        return required_output_exists(
+            session_dir, subject_id, suffix, extensions
+        ) or expected.issubset(planned_destinations)
 
     dwi = choose_primary(acquisitions["dwi"], "DWI")
-    if dwi:
-        append_moves(moves, dwi, subject_dir, "dwi", f"{subject_id}_dwi", DWI_EXTENSIONS)
-    elif not required_output_exists(subject_dir, "dwi", DWI_EXTENSIONS):
+    if required_available("dwi", DWI_EXTENSIONS):
+        pass
+    elif dwi:
+        append_moves(moves, dwi, session_dir, "dwi", f"{subject_id}_dwi", DWI_EXTENSIONS)
+    else:
         raise ValueError("no original diffusion acquisition with nonzero b-values found")
 
     t1w = choose_primary(acquisitions["T1w"], "T1w")
-    if t1w:
-        append_moves(moves, t1w, subject_dir, "anat", f"{subject_id}_T1w")
-    elif not required_output_exists(subject_dir, "T1w", NIFTI_EXTENSIONS):
+    if required_available("T1w", NIFTI_EXTENSIONS):
+        pass
+    elif t1w:
+        append_moves(moves, t1w, session_dir, "anat", f"{subject_id}_T1w")
+    else:
         raise ValueError("no original T1w acquisition found")
 
     # The reference DOC MRI dataset keeps non-T1 acquisitions under other/
@@ -222,7 +250,7 @@ def plan_subject(subject_dir: Path) -> tuple[list[tuple[Path, Path]], list[Path]
         )
     for source in other_sources:
         relative_name = source.relative_to(helper)
-        moves.append((source, subject_dir / "other" / relative_name))
+        moves.append((source, session_dir / "other" / relative_name))
 
     destinations = [destination for _, destination in moves]
     duplicates = sorted({path for path in destinations if destinations.count(path) > 1})
@@ -232,12 +260,23 @@ def plan_subject(subject_dir: Path) -> tuple[list[tuple[Path, Path]], list[Path]
     if existing:
         raise ValueError("destination already exists: " + ", ".join(map(str, existing)))
 
-    return moves, cleanup_paths(subject_dir), len(other_sources)
+    removals = cleanup_paths(subject_dir)
+    removals.extend(
+        subject_dir / datatype
+        for datatype in ("anat", "dwi", "other")
+        if (subject_dir / datatype).is_dir()
+    )
+    return moves, removals, len(other_sources)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("bids_root", type=Path, help="directory containing sub-* folders")
+    parser.add_argument(
+        "--session-label",
+        default="1",
+        help="BIDS session label for converted data (default: 1)",
+    )
     parser.add_argument(
         "--apply",
         action="store_true",
@@ -249,6 +288,9 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     root = args.bids_root.expanduser().resolve()
+    if not re.fullmatch(r"[A-Za-z0-9]+", args.session_label):
+        print("ERROR: --session-label must be alphanumeric", file=sys.stderr)
+        return 2
     subjects = sorted(path for path in root.glob("sub-*") if path.is_dir())
     if not subjects:
         print(f"ERROR: no sub-* directories found in {root}", file=sys.stderr)
@@ -257,7 +299,7 @@ def main() -> int:
     had_error = False
     for subject in subjects:
         try:
-            moves, removals, preserved_count = plan_subject(subject)
+            moves, removals, preserved_count = plan_subject(subject, args.session_label)
             action = "ORGANIZE" if args.apply else "PLAN"
             print(f"{action} {subject.name}")
             for source, destination in moves:

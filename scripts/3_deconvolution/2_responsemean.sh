@@ -26,12 +26,12 @@ cd "$BIDS_ROOT" || exit 1
 tissues=("wm" "gm" "csf")
 for tissue in "${tissues[@]}"; do
 		files=()
-		echo "Gathering ${tissue}.txt files from BIDS subjects..."
+		echo "Gathering ${tissue}.txt files from BIDS sessions..."
 
-		for subject_dir in sub-*/; do
-			[ -d "$subject_dir/dwi" ] || continue
-			subject=$(basename "$subject_dir")
-			tissue_file="${subject_dir}dwi/${subject}_desc-dhollander_response-${tissue}.txt"
+		for session_dir in sub-*/ses-*/; do
+			[ -d "$session_dir/dwi" ] || continue
+			subject=$(basename "$(dirname "${session_dir%/}")")
+			tissue_file="${session_dir}dwi/${subject}_desc-dhollander_response-${tissue}.txt"
 			if [ -f "$tissue_file" ]; then
 				files+=("$tissue_file")
 				echo "Found $tissue_file"
@@ -48,10 +48,10 @@ for tissue in "${tissues[@]}"; do
 		echo "Calculating average for ${tissue}.txt files: output -> $output_file"
 		responsemean "${files[@]}" "$output_file" -force
 
-		for subject_dir in sub-*/; do
-			[ -d "$subject_dir/dwi" ] || continue
-			subject=$(basename "$subject_dir")
-			dest_file="${subject_dir}dwi/${subject}_${output_file}"
+		for session_dir in sub-*/ses-*/; do
+			[ -d "$session_dir/dwi" ] || continue
+			subject=$(basename "$(dirname "${session_dir%/}")")
+			dest_file="${session_dir}dwi/${subject}_${output_file}"
 			cp "$output_file" "$dest_file"
 			echo "Copied $output_file to $dest_file"
 		done

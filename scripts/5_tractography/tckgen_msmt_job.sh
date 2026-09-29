@@ -29,12 +29,12 @@ module load FreeSurfer
 module load python/3.8
 
 if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
-    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID/ses-ID" >&2
     exit 2
 fi
 
-subject_dir=$1
-subject_id=$(basename "$subject_dir")
+session_dir=$1
+subject_id=$(basename "$(dirname "$session_dir")")
 echo "Job Doing $subject_id"
 echo "Model: MSMT-CSD"
 echo "Current working directory: $(pwd)"
@@ -46,7 +46,7 @@ tracks="${subject_id}_model-msmt_tractogram-10M.tck"
 
 # If the files already exist, we assume the job has already been run successfully and skip it.
 if [ -f "$tracks" ] && [ -f "${subject_id}_model-msmt_tractogram-200k.tck" ] && [ -f "${subject_id}_model-msmt_sift2-weights.txt" ] && [ -f "${subject_id}_model-msmt_sift2-mu.txt" ] && [ -f "${subject_id}_model-msmt_sift2-coeffs.txt" ]; then
-    echo "All output files already exist. Skipping tckgen_msmt_job for $subject_dir."
+    echo "All output files already exist. Skipping tckgen_msmt_job for $session_dir."
     exit 0
 fi
 
@@ -62,6 +62,6 @@ if [ -f "$wm_fod" ]; then
         -nthreads "${SLURM_CPUS_PER_TASK:-8}" \
         "$tracks" "$wm_fod" "${subject_id}_model-msmt_sift2-weights.txt" -force
 else
-    echo "$wm_fod not found in $subject_dir/dwi" >&2
+    echo "$wm_fod not found in $session_dir/dwi" >&2
     exit 1
 fi

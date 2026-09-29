@@ -11,10 +11,10 @@ run again.
 
 Scopes:
   all           All Stage 3 outputs (default)
-  response      Subject response-estimation outputs
-  responsemean  Cohort and subject mean-response outputs
-  ss3t          Subject SS3T FOD outputs
-  msmt          Subject MSMT-CSD FOD outputs
+  response      Session response-estimation outputs
+  responsemean  Cohort and session mean-response outputs
+  ss3t          Session SS3T FOD outputs
+  msmt          Session MSMT-CSD FOD outputs
 
 Options:
   -n, --dry-run  List files without removing them
@@ -112,12 +112,12 @@ if [[ "$scope" == all || "$scope" == responsemean ]]; then
     done
 fi
 
-subject_count=0
-for subject_dir in "$BIDS_ROOT"/sub-*; do
-    [[ -d "$subject_dir/dwi" ]] || continue
-    ((subject_count += 1))
-    subject=$(basename "$subject_dir")
-    dwi_dir="$subject_dir/dwi"
+session_count=0
+for session_dir in "$BIDS_ROOT"/sub-*/ses-*; do
+    [[ -d "$session_dir/dwi" ]] || continue
+    ((session_count += 1))
+    subject=$(basename "$(dirname "$session_dir")")
+    dwi_dir="$session_dir/dwi"
 
     if [[ "$scope" == all || "$scope" == response ]]; then
         add_target "$dwi_dir/${subject}_desc-preproc_dwi.mif"
@@ -152,8 +152,8 @@ for subject_dir in "$BIDS_ROOT"/sub-*; do
     fi
 done
 
-if ((subject_count == 0)); then
-    echo "No subjects with a dwi directory found under $BIDS_ROOT." >&2
+if ((session_count == 0)); then
+    echo "No sessions with a dwi directory found under $BIDS_ROOT." >&2
     exit 1
 fi
 

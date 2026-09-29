@@ -9,7 +9,7 @@
 #SBATCH --mail-type=FAIL,END
 
 # Single subject preprocessing
-# Usage: sbatch preprocess_single_subject.sh /absolute/path/to/bids/sub-ID
+# Usage: sbatch preprocess_single_subject.sh /absolute/path/to/bids/sub-ID/ses-ID
 
 PREPROCESSING_START_TIME=$(date +%s)
 
@@ -20,7 +20,7 @@ module load FreeSurfer
 module load singularity
 
 if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
-    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID/ses-ID" >&2
     exit 2
 fi
 
@@ -30,17 +30,19 @@ MNI_TEMPLATE="${MNI_TEMPLATE:-${PIPELINE_ROOT}/templates_parcellations/MNI152_T1
 SYNB0_SIF="${SYNB0_SIF:-${PIPELINE_ROOT}/images/synb0-disco_v3.0.sif}"
 
 # Get parameters
-SUBJECT_DIR=$1           # Full path to a BIDS sub-* directory
+SESSION_DIR=$1           # Full path to a BIDS sub-*/ses-* directory
+SUBJECT_DIR=$(dirname "$SESSION_DIR")
 SUBJECT_NAME=$(basename "$SUBJECT_DIR")
+SESSION_NAME=$(basename "$SESSION_DIR")
 
 
 echo "=========================================="
-echo "Processing subject: $SUBJECT_NAME"
-echo "Working directory: $SUBJECT_DIR"
+echo "Processing session: ${SUBJECT_NAME}_${SESSION_NAME}"
+echo "Working directory: $SESSION_DIR"
 echo "=========================================="
 
-ANAT_DIR="$SUBJECT_DIR/anat"
-DWI_DIR="$SUBJECT_DIR/dwi"
+ANAT_DIR="$SESSION_DIR/anat"
+DWI_DIR="$SESSION_DIR/dwi"
 T1_FILE=$(find "$ANAT_DIR" -maxdepth 1 -type f \
     -name "${SUBJECT_NAME}*_T1w.nii.gz" \
     ! -name "${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" \
@@ -76,7 +78,9 @@ echo "Current working directory: $(pwd)"
 # Store input info in a log file for reference
 cat > "${SUBJECT_NAME}_desc-preprocessing_info.txt" << EOF
 SUBJECT_NAME: $SUBJECT_NAME
+SESSION_NAME: $SESSION_NAME
 SUBJECT_DIR: $SUBJECT_DIR
+SESSION_DIR: $SESSION_DIR
 DWI_JSON: $DWI_JSON
 PROCESSING_DATE: $(date)
 EOF
@@ -186,7 +190,7 @@ if [ ! -f "OUTPUTS/topup_fieldcoef.nii.gz" ]; then
     
     singularity run -e -B INPUTS/:/INPUTS -B OUTPUTS/:/OUTPUTS -B $FREESURFER_HOME/license.txt:/extra/freesurfer/license.txt "$SYNB0_SIF"
     if [ $? -ne 0 ]; then
-        echo "ERROR: synb0-disco failed for $SUBJECT"
+        echo "ERROR: synb0-disco failed for ${SUBJECT_NAME}_${SESSION_NAME}"
         exit 1
     fi
 else
@@ -424,7 +428,7 @@ PREPROCESSING_SECONDS=$((PREPROCESSING_DURATION % 60))
 
 echo ""
 echo "=========================================="
-echo "Subject $SUBJECT_NAME processing complete!"
+echo "Session ${SUBJECT_NAME}_${SESSION_NAME} processing complete!"
 echo "End time: $(date)"
 printf "Total preprocessing time: %02d:%02d:%02d (HH:MM:SS)\n" \
     "$PREPROCESSING_HOURS" "$PREPROCESSING_MINUTES" "$PREPROCESSING_SECONDS"

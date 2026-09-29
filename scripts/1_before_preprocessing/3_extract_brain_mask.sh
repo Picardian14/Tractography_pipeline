@@ -12,16 +12,17 @@ output="${OUTPUT_DIR:-${PIPELINE_ROOT}/outputs}"
 brain_mask_job="${BRAIN_MASK_JOB:-${SCRIPT_DIR}/extract_brain_mask_job.sh}"
 
 mkdir -p "$output"
-for patient_folder in "$BIDS_ROOT"/sub-*/; do
-    [ -d "$patient_folder" ] || continue
-    subject_id=$(basename "$patient_folder")
-    [ -d "$patient_folder/anat" ] || continue
-    mkdir -p "$patient_folder/dwi"
-    echo "Submitting brain-mask job for $subject_id"
-    sbatch --job-name="brain-mask-$subject_id" \
+for session_dir in "$BIDS_ROOT"/sub-*/ses-*; do
+    [ -d "$session_dir/anat" ] || continue
+    subject_id=$(basename "$(dirname "$session_dir")")
+    session_id=$(basename "$session_dir")
+    analysis_id="${subject_id}_${session_id}"
+    mkdir -p "$session_dir/dwi"
+    echo "Submitting brain-mask job for $analysis_id"
+    sbatch --job-name="brain-mask-$analysis_id" \
         --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT" \
-        --output="$output/${subject_id}-brain-mask-%j.out.txt" \
-        --error="$output/${subject_id}-brain-mask-%j.err.txt" \
-        --chdir="$patient_folder/dwi" \
-        "$brain_mask_job" "$patient_folder"
+        --output="$output/${analysis_id}-brain-mask-%j.out.txt" \
+        --error="$output/${analysis_id}-brain-mask-%j.err.txt" \
+        --chdir="$session_dir/dwi" \
+        "$brain_mask_job" "$session_dir"
 done

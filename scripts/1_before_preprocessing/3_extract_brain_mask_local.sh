@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################################
-# Run HD-BET locally, one BIDS subject at a time.
+# Run HD-BET locally, one BIDS session at a time.
 ###############################################################################
 if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
     echo "Usage: $0 /absolute/path/to/bids" >&2
@@ -17,29 +17,30 @@ singularity exec \
     "${PIPELINE_ROOT}/images/diffusion_image.sif" \
     bash <<'EOF'
 
-for subject_dir in /bids/sub-*; do
-    [ -d "$subject_dir" ] || continue
+for session_dir in /bids/sub-*/ses-*; do
+    [ -d "$session_dir" ] || continue
 
-    if [ ! -d "$subject_dir/anat" ]; then
-        echo "No anat directory found in $subject_dir, skipping." >&2
+    if [ ! -d "$session_dir/anat" ]; then
+        echo "No anat directory found in $session_dir, skipping." >&2
         continue
     fi
-    ANAT_DIR="$subject_dir/anat"
+    ANAT_DIR="$session_dir/anat"
 
-    subject=$(basename "$subject_dir")
-    anat_dir="$subject_dir/anat"
-    t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
+    subject=$(basename "$(dirname "$session_dir")")
+    session=$(basename "$session_dir")
+    anat_dir="$session_dir/anat"
+    t1_file=$(find "$anat_dir" -maxdepth 1 -type f \
         -name "${subject}*_T1w.nii.gz" \
         ! -name "${subject}_desc-hdbet_T1w.nii.gz" \
         ! -name "${subject}_desc-hdbet_T1w_bet.nii.gz" \
         -print -quit 2>/dev/null)
 
     if [ -z "$t1_file" ]; then
-        echo "No ${subject}*_T1w.nii.gz found in $subject_dir/anat" >&2
+        echo "No ${subject}*_T1w.nii.gz found in $anat_dir" >&2
         continue
     fi
 
-    echo "Applying HD-BET locally to $subject"
+    echo "Applying HD-BET locally to ${subject}_${session}"
     cd "$anat_dir" && hd-bet -i "$t1_file" \
             -o "${subject}_desc-hdbet_T1w.nii.gz" \
             -device cpu --disable_tta --save_bet_mask

@@ -11,13 +11,15 @@ output="${OUTPUT_DIR:-${PIPELINE_ROOT}/outputs}"
 msmt_csd_job="${MSMT_CSD_JOB:-${SCRIPT_DIR}/msmt_csd.sh}"
 
 mkdir -p "$output"
-for subject_dir in "$BIDS_ROOT"/sub-*; do
-    [ -d "$subject_dir/dwi" ] || continue
-    subject_id=$(basename "$subject_dir")
-    echo "Doing $subject_id"
-    sbatch --job-name="msmt-csd-$subject_id" \
-        --output="$output/${subject_id}-msmt-csd-%j.out.txt" \
-        --error="$output/${subject_id}-msmt-csd-%j.err.txt" \
-        --chdir="$subject_dir/dwi" \
-        "$msmt_csd_job" "$subject_dir"
+for session_dir in "$BIDS_ROOT"/sub-*/ses-*; do
+    [ -d "$session_dir/dwi" ] || continue
+    subject_id=$(basename "$(dirname "$session_dir")")
+    session_id=$(basename "$session_dir")
+    analysis_id="${subject_id}_${session_id}"
+    echo "Doing $analysis_id"
+    sbatch --job-name="msmt-csd-$analysis_id" \
+        --output="$output/${analysis_id}-msmt-csd-%j.out.txt" \
+        --error="$output/${analysis_id}-msmt-csd-%j.err.txt" \
+        --chdir="$session_dir/dwi" \
+        "$msmt_csd_job" "$session_dir"
 done

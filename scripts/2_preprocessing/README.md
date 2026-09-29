@@ -1,7 +1,7 @@
 # Stage 2: preprocessing
 
-This stage preprocesses one T1w image and one DWI series per BIDS subject. The
-launcher submits one Slurm job per `sub-*` directory:
+This stage preprocesses one T1w image and one DWI series per BIDS session. The
+launcher submits one Slurm job per `sub-*/ses-*` directory:
 
 ```bash
 bash scripts/2_preprocessing/1_submits_all_subs_preproc.sh /path/to/bids
@@ -9,7 +9,7 @@ bash scripts/2_preprocessing/1_submits_all_subs_preproc.sh /path/to/bids
 
 ## Inputs and outputs
 
-Each subject must contain:
+Each session must contain:
 
 - `anat/sub-*_T1w.nii.gz`: the subject's original anatomical T1w image.
 - `dwi/sub-*_dwi.nii.gz`: the original diffusion-weighted image.
@@ -25,7 +25,7 @@ The stage also uses:
 - `templates_parcellations/MNI152_T1_2mm.nii.gz`: the MNI registration
   reference.
 
-Jobs run in each subject's `dwi/` directory. In the table below, `<sub>` is the
+Jobs run in each session's `dwi/` directory. In the table below, `<sub>` is the
 subject directory name, for example `sub-001`.
 
 **Substep:** 1. T1 brain extraction  

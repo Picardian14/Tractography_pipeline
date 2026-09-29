@@ -67,50 +67,53 @@ submit_job() {
     printf '%s\n' "$job_id"
 }
 
-subjects=()
+sessions=()
 response_ids=()
-declare -A response_id tissue_id recon_id
+declare -A session_path response_id tissue_id recon_id
 parcellation_count=0
 
-for subject_dir in "$BIDS_ROOT"/sub-*; do
-    [ -d "$subject_dir/dwi" ] || continue
-    subject_id=$(basename "$subject_dir")
-    subjects+=("$subject_id")
+for session_dir in "$BIDS_ROOT"/sub-*/ses-*; do
+    [ -d "$session_dir/dwi" ] || continue
+    subject_id=$(basename "$(dirname "$session_dir")")
+    session_id=$(basename "$session_dir")
+    analysis_id="${subject_id}_${session_id}"
+    sessions+=("$analysis_id")
+    session_path["$analysis_id"]="$session_dir"
 
-    response_id["$subject_id"]=$(submit_job "dwi2response for $subject_id" \
-        --job-name="dwi2resp-$subject_id" \
-        --output="$OUTPUT_DIR/${subject_id}-dwi2resp-%j.out.txt" \
-        --error="$OUTPUT_DIR/${subject_id}-dwi2resp-%j.err.txt" \
-        --chdir="$subject_dir/dwi" \
-        "$dwi2response_job" "$subject_dir")
-    response_ids+=("${response_id[$subject_id]}")
+    response_id["$analysis_id"]=$(submit_job "dwi2response for $analysis_id" \
+        --job-name="dwi2resp-$analysis_id" \
+        --output="$OUTPUT_DIR/${analysis_id}-dwi2resp-%j.out.txt" \
+        --error="$OUTPUT_DIR/${analysis_id}-dwi2resp-%j.err.txt" \
+        --chdir="$session_dir/dwi" \
+        "$dwi2response_job" "$session_dir")
+    response_ids+=("${response_id[$analysis_id]}")
 
     # Tissue segmentation needs the .mif produced during dwi2response, but it
     # does not need to wait for the cohort response mean.
-    if [ -d "$subject_dir/anat" ]; then
-        tissue_id["$subject_id"]=$(submit_job "5TT segmentation for $subject_id" \
-            --dependency="afterok:${response_id[$subject_id]}" \
-            --job-name="5tt-$subject_id" \
-            --output="$OUTPUT_DIR/${subject_id}-5tt-%j.out.txt" \
-            --error="$OUTPUT_DIR/${subject_id}-5tt-%j.err.txt" \
-            --chdir="$subject_dir/dwi" \
+    if [ -d "$session_dir/anat" ]; then
+        tissue_id["$analysis_id"]=$(submit_job "5TT segmentation for $analysis_id" \
+            --dependency="afterok:${response_id[$analysis_id]}" \
+            --job-name="5tt-$analysis_id" \
+            --output="$OUTPUT_DIR/${analysis_id}-5tt-%j.out.txt" \
+            --error="$OUTPUT_DIR/${analysis_id}-5tt-%j.err.txt" \
+            --chdir="$session_dir/dwi" \
             --mem=16G --time=48:00:00 \
-            "$tissue_job" "$subject_dir")
+            "$tissue_job" "$session_dir")
 
         # FreeSurfer is independent of deconvolution and can run immediately.
-        recon_id["$subject_id"]=$(submit_job "recon-all for $subject_id" \
+        recon_id["$analysis_id"]=$(submit_job "recon-all for $analysis_id" \
             --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT" \
-            --job-name="recon_all-$subject_id" \
-            --output="$OUTPUT_DIR/${subject_id}-recon_all-%j.out.txt" \
-            --error="$OUTPUT_DIR/${subject_id}-recon_all-%j.err.txt" \
-            --chdir="$subject_dir/anat" \
+            --job-name="recon_all-$analysis_id" \
+            --output="$OUTPUT_DIR/${analysis_id}-recon_all-%j.out.txt" \
+            --error="$OUTPUT_DIR/${analysis_id}-recon_all-%j.err.txt" \
+            --chdir="$session_dir/anat" \
             --mem=64G --time=24:00:00 \
-            "$recon_all_job" "$subject_dir")
+            "$recon_all_job" "$session_dir")
     fi
 done
 
-if [ "${#subjects[@]}" -eq 0 ]; then
-    echo "No subjects with a dwi directory found under $BIDS_ROOT." >&2
+if [ "${#sessions[@]}" -eq 0 ]; then
+    echo "No sessions with a dwi directory found under $BIDS_ROOT." >&2
     exit 1
 fi
 
@@ -124,45 +127,45 @@ mean_id=$(submit_job "cohort response mean" \
     --cpus-per-task=1 --mem=4G --time=01:00:00 \
     "$responsemean_job" "$BIDS_ROOT")
 
-for subject_id in "${subjects[@]}"; do
-    subject_dir="$BIDS_ROOT/$subject_id"
+for analysis_id in "${sessions[@]}"; do
+    session_dir=${session_path[$analysis_id]}
 
-    ss3t_id=$(submit_job "ss3t-CSD for $subject_id" \
+    ss3t_id=$(submit_job "ss3t-CSD for $analysis_id" \
         --dependency="afterok:${mean_id}" \
         --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT" \
-        --job-name="ss3t-csd-$subject_id" \
-        --output="$OUTPUT_DIR/${subject_id}-ss3t-csd-%j.out.txt" \
-        --error="$OUTPUT_DIR/${subject_id}-ss3t-csd-%j.err.txt" \
-        --chdir="$subject_dir/dwi" \
-        "$ss3t_csd_job" "$subject_dir")
+        --job-name="ss3t-csd-$analysis_id" \
+        --output="$OUTPUT_DIR/${analysis_id}-ss3t-csd-%j.out.txt" \
+        --error="$OUTPUT_DIR/${analysis_id}-ss3t-csd-%j.err.txt" \
+        --chdir="$session_dir/dwi" \
+        "$ss3t_csd_job" "$session_dir")
 
-    if [ -z "${tissue_id[$subject_id]:-}" ]; then
-        echo "Skipping tractography/parcellation for $subject_id: no anat directory." >&2
+    if [ -z "${tissue_id[$analysis_id]:-}" ]; then
+        echo "Skipping tractography/parcellation for $analysis_id: no anat directory." >&2
         continue
     fi
 
-    tck_id=$(submit_job "ss3t tractography for $subject_id" \
-        --dependency="afterok:${ss3t_id}:${tissue_id[$subject_id]}" \
-        --job-name="tck-ss3t-$subject_id" \
-        --output="$OUTPUT_DIR/${subject_id}-tck-ss3t-%j.out.txt" \
-        --error="$OUTPUT_DIR/${subject_id}-tck-ss3t-%j.err.txt" \
-        --chdir="$subject_dir/dwi" \
+    tck_id=$(submit_job "ss3t tractography for $analysis_id" \
+        --dependency="afterok:${ss3t_id}:${tissue_id[$analysis_id]}" \
+        --job-name="tck-ss3t-$analysis_id" \
+        --output="$OUTPUT_DIR/${analysis_id}-tck-ss3t-%j.out.txt" \
+        --error="$OUTPUT_DIR/${analysis_id}-tck-ss3t-%j.err.txt" \
+        --chdir="$session_dir/dwi" \
         --mem=16G --time=12:00:00 \
-        "$tckgen_job" "$subject_dir")
+        "$tckgen_job" "$session_dir")
 
-    submit_job "ss3t parcellation for $subject_id" \
+    submit_job "ss3t parcellation for $analysis_id" \
         --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT",WORKFLOW_START_EPOCH="$workflow_start_epoch",WORKFLOW_TIMING_LOG="$workflow_timing_log" \
-        --dependency="afterok:${tck_id}:${recon_id[$subject_id]}" \
-        --job-name="parcellate-ss3t-$subject_id" \
-        --output="$OUTPUT_DIR/${subject_id}-parcellate-ss3t-%j.out.txt" \
-        --error="$OUTPUT_DIR/${subject_id}-parcellate-ss3t-%j.err.txt" \
-        --chdir="$subject_dir/dwi" \
+        --dependency="afterok:${tck_id}:${recon_id[$analysis_id]}" \
+        --job-name="parcellate-ss3t-$analysis_id" \
+        --output="$OUTPUT_DIR/${analysis_id}-parcellate-ss3t-%j.out.txt" \
+        --error="$OUTPUT_DIR/${analysis_id}-parcellate-ss3t-%j.err.txt" \
+        --chdir="$session_dir/dwi" \
         --mem=32G --time=24:00:00 \
-        "$parcellate_job" "$subject_dir" >/dev/null
+        "$parcellate_job" "$session_dir" >/dev/null
     ((parcellation_count += 1))
 done
 
-echo "ss3t workflow submitted for ${#subjects[@]} subject(s)."
+echo "ss3t workflow submitted for ${#sessions[@]} session(s)."
 echo "Cohort response-mean barrier job: $mean_id"
 if ((parcellation_count > 0)); then
     echo "Successful parcellation completion(s) will be appended to $workflow_timing_log."

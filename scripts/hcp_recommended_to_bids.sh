@@ -91,8 +91,9 @@ for diffusion_name in "${diffusion_archives[@]}"; do
         mv "$archive_subject_dir" "$extracted_subject"
     fi
 
-    anat_dir="$output_dir/sub-$subject/anat"
-    dwi_dir="$output_dir/sub-$subject/dwi"
+    session_dir="$output_dir/sub-$subject/ses-1"
+    anat_dir="$session_dir/anat"
+    dwi_dir="$session_dir/dwi"
     mkdir -p "$anat_dir" "$dwi_dir"
 
     t1_source="$extracted_subject/T1w/T1w_acpc_dc_restore.nii.gz"
@@ -149,7 +150,7 @@ EOF
     cat > "$dwi_dir/sub-${subject}_desc-preproc_dwi.json" <<EOF
 {
   "Sources": ["sourcedata/hcp/sub-${subject}/T1w/Diffusion/data.nii.gz"],
-  "SpatialReference": "sub-${subject}/anat/sub-${subject}_desc-preproc_T1w.nii.gz"
+  "SpatialReference": "sub-${subject}/ses-1/anat/sub-${subject}_desc-preproc_T1w.nii.gz"
 }
 EOF
     touch "$completion_marker"
@@ -181,7 +182,7 @@ HCP Young Adult Unrelated Recommended preprocessed data
 This is a BIDS-Derivatives dataset, not a raw BIDS dataset. The archives contain
 outputs from the HCP minimal preprocessing and BEDPOSTX pipelines. Their complete
 uncompressed contents are retained under sourcedata/hcp/sub-<label>. The
-subject-level anat and dwi files are hard links to selected HCP-preprocessed
+session-level ses-1/anat and ses-1/dwi files are hard links to selected HCP-preprocessed
 images. They occupy no additional payload space. Modifying a linked file changes
 the shared data; removing one pathname does not remove the other link.
 

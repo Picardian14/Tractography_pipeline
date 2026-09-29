@@ -8,13 +8,13 @@ parcellation stages:
 
 ## Order of operations
 
-### 1. Estimate each subject's response functions
+### 1. Estimate each session's response functions
 
 ```bash
 bash scripts/3_deconvolution/1_run_dwi2resp_jobs.sh /path/to/bids
 ```
 
-**Substep:** 1. Estimate each subject's response functions  
+**Substep:** 1. Estimate each session's response functions
 **Processing:** Convert the preprocessed DWI to MRtrix, resample the T1 mask to the DWI grid, and run `dwi2response dhollander`
 
 **Inputs:**
@@ -29,11 +29,11 @@ bash scripts/3_deconvolution/1_run_dwi2resp_jobs.sh /path/to/bids
 - `<sub>_desc-preproc_dwi.mif`: the preprocessed DWI and gradients in MRtrix
   format.
 - `<sub>_desc-resampled_bet.mif`: the T1w brain mask resampled to the DWI grid.
-- `<sub>_desc-dhollander_response-wm.txt`: the subject-level white-matter
+- `<sub>_desc-dhollander_response-wm.txt`: the session-level white-matter
   response function.
-- `<sub>_desc-dhollander_response-gm.txt`: the subject-level grey-matter
+- `<sub>_desc-dhollander_response-gm.txt`: the session-level grey-matter
   response function.
-- `<sub>_desc-dhollander_response-csf.txt`: the subject-level CSF response
+- `<sub>_desc-dhollander_response-csf.txt`: the session-level CSF response
   function.
 - `<sub>_desc-dhollander_voxels.mif`: the WM, GM, and CSF voxels selected for
   response estimation.
@@ -50,8 +50,8 @@ them in the same BIDS root.
 sbatch scripts/3_deconvolution/2_responsemean.sh /path/to/bids
 ```
 
-The script reads every subject's individual WM, GM, and CSF response. It writes
-the mean responses at the BIDS root and copies them to every subject.
+The script reads every session's individual WM, GM, and CSF response. It writes
+the mean responses at the BIDS root and copies them to every session.
 
 **Substep:** 2. Average responses across subjects
 **Processing:** Run `responsemean` separately for the WM, GM, and CSF response
@@ -173,7 +173,7 @@ tractography/parcellation products, or Slurm logs.
 
 ## Visual quality control
 
-Run the examples from one subject's `dwi/` directory. Set `model=ss3t` for
+Run the examples from one session's `dwi/` directory. Set `model=ss3t` for
 clinical single-shell data or `model=msmt` for higher-quality multi-shell data.
 
 ```bash

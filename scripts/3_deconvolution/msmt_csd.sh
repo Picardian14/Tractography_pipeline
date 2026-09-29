@@ -20,14 +20,14 @@ trap report_processing_time EXIT
 module load MRtrix
 
 if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
-    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID/ses-ID" >&2
     exit 2
 fi
 
-subject_dir=$1
-subject=$(basename "$subject_dir")
+session_dir=$1
+subject=$(basename "$(dirname "$session_dir")")
 
-echo "Job Doing $subject_dir"
+echo "Job Doing $session_dir"
 echo "Current working directory: $(pwd)"
 
 dwi_file="${subject}_desc-preproc_dwi.mif"
@@ -36,7 +36,7 @@ gm_response="${subject}_desc-meanDhollander_response-gm.txt"
 csf_response="${subject}_desc-meanDhollander_response-csf.txt"
 
 if [ ! -f "$dwi_file" ]; then
-    echo "No $dwi_file in $subject_dir/dwi" >&2
+    echo "No $dwi_file in $session_dir/dwi" >&2
     exit 1
 fi
 
@@ -46,7 +46,7 @@ if [ -f "${subject}_model-msmt_fod-wm.mif" ] && [ -f "${subject}_model-msmt_fod-
    [ -f "${subject}_model-msmt_desc-normalized_fod-wm.mif" ] && \
    [ -f "${subject}_model-msmt_desc-normalized_fod-gm.mif" ] && \
    [ -f "${subject}_model-msmt_desc-normalized_fod-csf.mif" ]; then
-    echo "All output files already exist. Skipping msmt_csd for $subject_dir."
+    echo "All output files already exist. Skipping msmt_csd for $session_dir."
     exit 0
 fi
 

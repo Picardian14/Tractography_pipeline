@@ -12,7 +12,7 @@ bash scripts/4_segment5tt/1_run_tissue_jobs.sh /path/to/bids
 
 ## Inputs, processing, and outputs
 
-Jobs run in `<sub>/dwi/`.
+Jobs run in `<sub>/<ses>/dwi/`.
 
 **Substep:** 1. Five-tissue segmentation  
 **Processing:** Convert T1w to MRtrix and run `5ttgen fsl`
@@ -77,7 +77,7 @@ Jobs run in `<sub>/dwi/`.
 
 ## Visual quality control
 
-Run these commands from one subject's `dwi/` directory, following the overlay
+Run these commands from one session's `dwi/` directory, following the overlay
 style in `check_images.sh`.
 
 ```bash

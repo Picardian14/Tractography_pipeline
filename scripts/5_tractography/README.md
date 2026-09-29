@@ -15,7 +15,7 @@ bash scripts/5_tractography/1_run_tckgen_ss3t_jobs.sh /path/to/bids
 
 ## Inputs, processing, and outputs
 
-Jobs run in `<sub>/dwi/`. Replace `<model>` with `msmt` or `ss3t`.
+Jobs run in `<sub>/<ses>/dwi/`. Replace `<model>` with `msmt` or `ss3t`.
 
 **Substep:** 1. ACT tractography  
 **Processing:** Generate 10 million streamlines with ACT, backtracking, and GMWMI seeding
@@ -67,7 +67,7 @@ the 10M tractogram and its matching SIFT2 weights.
 
 ## Visual quality control
 
-From one subject's `dwi/` directory, inspect the smaller tractogram as in
+From one session's `dwi/` directory, inspect the smaller tractogram as in
 `check_images.sh`:
 
 ```bash

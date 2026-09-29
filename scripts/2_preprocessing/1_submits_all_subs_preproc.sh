@@ -2,9 +2,9 @@
 #
 # Master script to preprocess subjects from a BIDS structure
 # This script will:
-# 1. Find all sub-* folders in the BIDS root
-# 2. Check each subject for matching anat and dwi inputs
-# 3. Submit one preprocessing job per subject
+# 1. Find all sub-*/ses-* folders in the BIDS root
+# 2. Check each session for matching anat and dwi inputs
+# 3. Submit one preprocessing job per session
 #
 # Usage: bash 1_submits_all_subs_preproc.sh /absolute/path/to/bids
 
@@ -28,30 +28,32 @@ echo "=========================================="
 # Counter for total jobs submitted
 total_jobs=0
 
-for subject_dir in "$BIDS_ROOT"/sub-*; do
-        if [ ! -d "$subject_dir" ]; then
+for session_dir in "$BIDS_ROOT"/sub-*/ses-*; do
+        if [ ! -d "$session_dir" ]; then
             continue
         fi
-        subject_name=$(basename "$subject_dir")
-        t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
+        subject_name=$(basename "$(dirname "$session_dir")")
+        session_name=$(basename "$session_dir")
+        analysis_name="${subject_name}_${session_name}"
+        t1_file=$(find "$session_dir/anat" -maxdepth 1 -type f \
             -name "${subject_name}*_T1w.nii.gz" \
             ! -name "${subject_name}_desc-hdbet_T1w.nii.gz" \
             ! -name "${subject_name}_desc-hdbet_T1w_mask.nii.gz" \
             -print -quit 2>/dev/null)
-	        dwi_file=$(find "$subject_dir/dwi" -maxdepth 1 -type f \
+	        dwi_file=$(find "$session_dir/dwi" -maxdepth 1 -type f \
 	            -name "${subject_name}*_dwi.nii.gz" \
 	            ! -name "${subject_name}*_desc-preproc_dwi.nii.gz" \
 	            -print -quit 2>/dev/null)
 
         if [ -n "$t1_file" ] && [ -n "$dwi_file" ]; then
-            echo "  Submitting: $subject_name"
-            sbatch --job-name="preproc-$subject_name" \
+            echo "  Submitting: $analysis_name"
+            sbatch --job-name="preproc-$analysis_name" \
                 --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT" \
-                --chdir="$subject_dir/dwi" \
-                --output="${OUTPUT_DIR}/${subject_name}-preproc-%j.out.txt" \
-                --error="${OUTPUT_DIR}/${subject_name}-preproc-%j.err.txt" \
+                --chdir="$session_dir/dwi" \
+                --output="${OUTPUT_DIR}/${analysis_name}-preproc-%j.out.txt" \
+                --error="${OUTPUT_DIR}/${analysis_name}-preproc-%j.err.txt" \
                 "$PREPROCESS_JOB" \
-                "$subject_dir"
+                "$session_dir"
             
             ((total_jobs++))
         fi

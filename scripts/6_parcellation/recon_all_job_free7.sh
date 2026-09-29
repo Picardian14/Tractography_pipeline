@@ -17,7 +17,7 @@ report_processing_time() {
     local exit_status=$?
     local elapsed=$((SECONDS - JOB_START_TIME))
     printf "Processing time for %s: %02d:%02d:%02d (HH:MM:SS; exit status: %d)\n" \
-        "${subject_id:-$(basename "$0")}" \
+        "${fs_subject_id:-$(basename "$0")}" \
         "$((elapsed / 3600))" "$(((elapsed % 3600) / 60))" "$((elapsed % 60))" \
         "$exit_status"
 }
@@ -26,30 +26,32 @@ trap report_processing_time EXIT
 ml FreeSurfer/7.4.1
 
 if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
-    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID/ses-ID" >&2
     exit 2
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-subject_dir=$1
-subject_id=$(basename "$subject_dir")
-t1_file=$(find "$subject_dir/anat" -maxdepth 1 -type f \
+session_dir=$1
+subject_id=$(basename "$(dirname "$session_dir")")
+session_id=$(basename "$session_dir")
+fs_subject_id="${subject_id}_${session_id}"
+t1_file=$(find "$session_dir/anat" -maxdepth 1 -type f \
     -name "${subject_id}*_T1w.nii.gz" \
     ! -name "${subject_id}_desc-hdbet_T1w.nii.gz" \
     ! -name "${subject_id}_desc-hdbet_T1w_mask.nii.gz" \
     -print -quit)
-echo "Job Doing $subject_id"
+echo "Job Doing $fs_subject_id"
 export SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR:-${PIPELINE_ROOT}/freesurfer7}"
 mkdir -p "$SUBJECTS_DIR"
 # If the subject folder in SUBJECTS_DIR does not exist, run recon-all.
 
-echo "Running recon-all for $subject_id"
-if [ ! -d "$SUBJECTS_DIR/$subject_id" ]; then
-    echo "Subject folder $SUBJECTS_DIR/$subject_id does not exist. Running recon-all."
-    recon-all -all -s "$subject_id" -i "$t1_file" -parallel -openmp 4
+echo "Running recon-all for $fs_subject_id"
+if [ ! -d "$SUBJECTS_DIR/$fs_subject_id" ]; then
+    echo "Subject folder $SUBJECTS_DIR/$fs_subject_id does not exist. Running recon-all."
+    recon-all -all -s "$fs_subject_id" -i "$t1_file" -parallel -openmp 4
 else
-    echo "Subject folder $SUBJECTS_DIR/$subject_id already exists. Running without -i."
-    recon-all -all -s "$subject_id" -parallel -openmp 4
+    echo "Subject folder $SUBJECTS_DIR/$fs_subject_id already exists. Running without -i."
+    recon-all -all -s "$fs_subject_id" -parallel -openmp 4
     
 fi

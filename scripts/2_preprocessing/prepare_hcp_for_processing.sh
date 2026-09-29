@@ -8,7 +8,7 @@ usage() {
 Usage: prepare_hcp_for_processing.sh /absolute/path/to/hcp-bids
 
 The dataset must have been created by hcp_recommended_to_bids.sh. This script
-uses the files already organized under each subject's anat/ and dwi/
+uses the files already organized under each subject's ses-*/anat and ses-*/dwi
 directories. It creates the MRtrix DWI and mask inputs, the final mean b=0, and
 the diffusion-space T1w image used for visual quality control.
 EOF
@@ -31,15 +31,16 @@ for command_name in mrconvert dwiextract mrmath mrtransform; do
     fi
 done
 
-subjects_prepared=0
-for subject_dir in "$BIDS_ROOT"/sub-*; do
-    [[ -d "$subject_dir/anat" && -d "$subject_dir/dwi" ]] || continue
+sessions_prepared=0
+for session_dir in "$BIDS_ROOT"/sub-*/ses-*; do
+    [[ -d "$session_dir/anat" && -d "$session_dir/dwi" ]] || continue
 
-    subject=$(basename "$subject_dir")
-    anat_dir="$subject_dir/anat"
-    dwi_dir="$subject_dir/dwi"
+    subject=$(basename "$(dirname "$session_dir")")
+    session=$(basename "$session_dir")
+    anat_dir="$session_dir/anat"
+    dwi_dir="$session_dir/dwi"
 
-    printf 'Preparing %s\n' "$subject"
+    printf 'Preparing %s_%s\n' "$subject" "$session"
 
     t1_brain="$anat_dir/${subject}_desc-hdbet_T1w.nii.gz"
     dwi_mask_nii="$dwi_dir/${subject}_desc-preproc_dwi_mask.nii.gz"
@@ -84,12 +85,12 @@ for subject_dir in "$BIDS_ROOT"/sub-*; do
     mv ${anat_dir}/${subject}_desc-preproc_T1w.nii.gz ${anat_dir}/${subject}_T1w.nii.gz
     mv ${anat_dir}/${subject}_desc-preproc_T1w.json ${anat_dir}/${subject}_T1w.json
 
-    subjects_prepared=$((subjects_prepared + 1))
+    sessions_prepared=$((sessions_prepared + 1))
 done
 
-if [[ $subjects_prepared -eq 0 ]]; then
-    printf 'No HCP subjects were prepared under %s\n' "$BIDS_ROOT" >&2
+if [[ $sessions_prepared -eq 0 ]]; then
+    printf 'No HCP sessions were prepared under %s\n' "$BIDS_ROOT" >&2
     exit 1
 fi
 
-printf 'Prepared %d HCP subject(s) for pipeline stages 3--6.\n' "$subjects_prepared"
+printf 'Prepared %d HCP session(s) for pipeline stages 3--6.\n' "$sessions_prepared"

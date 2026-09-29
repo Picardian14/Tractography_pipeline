@@ -29,14 +29,14 @@ module load FreeSurfer
 module load python/3.8
 
 if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
-    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID/ses-ID" >&2
     exit 2
 fi
 
-subject_dir=$1
-subject_id=$(basename "$subject_dir")
-anat_dir="$subject_dir/anat"
-dwi_dir="$subject_dir/dwi"
+session_dir=$1
+subject_id=$(basename "$(dirname "$session_dir")")
+anat_dir="$session_dir/anat"
+dwi_dir="$session_dir/dwi"
 # Should be the raw T1
 t1_file=$(find "$anat_dir" -maxdepth 1 -type f \
     -name "${subject_id}_T1w.nii.gz" \

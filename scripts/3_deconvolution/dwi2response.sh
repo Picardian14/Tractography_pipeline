@@ -23,18 +23,18 @@ module load MRtrix
 module load python/3.8
 
 if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
-    echo "Usage: $0 /absolute/path/to/bids/sub-ID" >&2
+    echo "Usage: $0 /absolute/path/to/bids/sub-ID/ses-ID" >&2
     exit 2
 fi
 
-subject_dir=$1
-echo "Job Doing $subject_dir"
+session_dir=$1
+echo "Job Doing $session_dir"
 echo "Current working directory: $(pwd)"
-subject=$(basename "$subject_dir")
+subject=$(basename "$(dirname "$session_dir")")
 
 mrconvert ${subject}_desc-preproc_dwi.nii.gz ${subject}_desc-preproc_dwi.mif -fslgrad ${subject}_desc-preproc_dwi.bvec ${subject}_desc-preproc_dwi.bval -force -force 
 if [ ! -f "${subject}_desc-resampled_bet.mif" ]; then
-    mrconvert "${subject_dir}/anat/${subject}_desc-hdbet_T1w_bet.nii.gz" \
+    mrconvert "${session_dir}/anat/${subject}_desc-hdbet_T1w_bet.nii.gz" \
         "${subject}_desc-hdbet_T1w_bet.mif" -force
     mrtransform "${subject}_desc-hdbet_T1w_bet.mif" \
         -template "${subject}_desc-preproc_dwi.mif" \
