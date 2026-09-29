@@ -34,19 +34,21 @@ subject=$(basename "$(dirname "$session_dir")")
 
 mrconvert ${subject}_desc-preproc_dwi.nii.gz ${subject}_desc-preproc_dwi.mif -fslgrad ${subject}_desc-preproc_dwi.bvec ${subject}_desc-preproc_dwi.bval -force -force 
 if [ ! -f "${subject}_desc-resampled_bet.mif" ]; then
+    if [ ! -f "rigid_T1toDWI.txt" ]; then
+        echo "Missing T1-to-DWI transform: $(pwd)/rigid_T1toDWI.txt" >&2
+        exit 1
+    fi
     mrconvert "${session_dir}/anat/${subject}_desc-hdbet_T1w_bet.nii.gz" \
         "${subject}_desc-hdbet_T1w_bet.mif" -force
     mrtransform "${subject}_desc-hdbet_T1w_bet.mif" \
+        -linear rigid_T1toDWI.txt \
         -template "${subject}_desc-preproc_dwi.mif" \
         -interp nearest "${subject}_desc-resampled_bet.mif" -force
 fi
-#dwiextract Diff_preproc_unbiased.mif - -bzero -force | mrmath - mean meanb0_post_preproc.nii -axis 3 -force
-#flirt -in T1_HDbet.nii.gz -ref meanb0_post_preproc.nii -dof 6 -omat rigid_T1toDWI.mat 			
-#transformconvert rigid_T1toDWI.mat T1_HDbet.nii.gz meanb0_post_preproc.nii flirt_import rigid_T1toDWI.txt -force
-#mrtransform T1_HDbet.nii.gz T1_in_dwi_space.nii.gz -linear rigid_T1toDWI.txt -force
 dwi2response dhollander "${subject}_desc-preproc_dwi.mif" \
     "${subject}_desc-dhollander_response-wm.txt" \
     "${subject}_desc-dhollander_response-gm.txt" \
     "${subject}_desc-dhollander_response-csf.txt" \
+    -mask "${subject}_desc-resampled_bet.mif" \
     -voxels "${subject}_desc-dhollander_voxels.mif" \
     -nthreads 4 -force

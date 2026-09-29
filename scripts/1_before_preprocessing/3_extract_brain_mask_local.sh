@@ -44,24 +44,5 @@ for session_dir in /bids/sub-*/ses-*; do
     cd "$anat_dir" && hd-bet -i "$t1_file" \
             -o "${subject}_desc-hdbet_T1w.nii.gz" \
             -device cpu --disable_tta --save_bet_mask
-
-    flirt \
-        -in ${subject}_desc-hdbet_T1w.nii.gz \
-        -ref mean_b0_final.nii.gz \
-        -dof 6 \
-        -omat rigid_T1toDWI.mat
-
-    transformconvert \
-        rigid_T1toDWI.mat \
-        ${subject}_desc-hdbet_T1w.nii.gz \
-        mean_b0_final.nii.gz \
-        flirt_import \
-        rigid_T1toDWI.txt
-
-    mrtransform \
-        ${subject}_desc-hdbet_T1w.nii.gz \
-        $ANAT_DIR/T1_in_dwi_space.nii.gz \
-        -linear rigid_T1toDWI.txt
-    
 done
 EOF

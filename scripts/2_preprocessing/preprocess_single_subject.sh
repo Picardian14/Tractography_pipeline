@@ -71,7 +71,8 @@ PREPROC_BVEC="${SUBJECT_NAME}_desc-preproc_dwi.bvec"
 DWI_B0_MASK_NII="${SUBJECT_NAME}_desc-preproc_b0_mask.nii.gz"
 T1_BRAIN_NII="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz"
 T1_MASK_NII="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w_bet.nii.gz"
-T1_MASK_MIF="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w_bet.mif"
+T1_MASK_DWI_MIF="${SUBJECT_NAME}_desc-resampled_bet.mif"
+T1_IN_DWI_NII="${ANAT_DIR}/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz"
 
 echo "Current working directory: $(pwd)"
 
@@ -109,7 +110,7 @@ else
     fi
 fi
 
-if [ ! -f "$T1_BRAIN_NII" ]; then
+if [ ! -f "$T1_BRAIN_NII" ] || [ ! -f "$T1_MASK_NII" ]; then
     echo "ERROR: Expected HD-BET outputs were not created for $SUBJECT_NAME" >&2
     exit 1
 fi
@@ -219,16 +220,6 @@ echo "$ones" > eddy_indices.txt
 # Convert to NIfTI for eddy
 mrconvert "$input_dwi" Diff_eddy_in.nii.gz -force
 
-# Convert the T1 mask created in step 1 to MRtrix format.
-echo "Loading T1 brain mask..."
-if [ ! -f "$T1_MASK_NII" ]; then
-    echo "  - $T1_MASK_NII not found. HD-BET step 1 did not produce the mask."
-    exit 1
-fi
-mrconvert "$T1_MASK_NII" "$T1_MASK_MIF" -force
-
-
-
 ##############################################
 # STEP 6: Run eddy correction
 ##############################################
@@ -277,14 +268,57 @@ mrconvert "$PREPROC_DWI_MIF" "$PREPROC_DWI_NII" \
     -export_grad_fsl "$PREPROC_BVEC" "$PREPROC_BVAL" -force
 
 ##############################################
-# STEP 8: Compute FA
+# STEP 8: Create the final b0 reference and register the T1 mask to DWI
 ##############################################
 echo ""
-echo "Step 8: Computing FA map..."
+echo "Step 8: Registering the HD-BET mask to final DWI space..."
+
+# Eddy changes the DWI geometry, so the anatomical mask can only be placed on
+# the final DWI grid after preprocessing. The brain-extracted T1 provides a
+# cleaner cross-modal registration target than the unstripped anatomical image.
+dwiextract "$PREPROC_DWI_MIF" - -bzero -force | \
+    mrmath - mean mean_b0_final.mif -axis 3 -force
+mrconvert mean_b0_final.mif mean_b0_final.nii.gz -force
+
+flirt \
+    -in "$T1_BRAIN_NII" \
+    -ref mean_b0_final.nii.gz \
+    -dof 6 \
+    -omat rigid_T1toDWI.mat
+
+transformconvert \
+    rigid_T1toDWI.mat \
+    "$T1_BRAIN_NII" \
+    mean_b0_final.nii.gz \
+    flirt_import \
+    rigid_T1toDWI.txt
+
+# Use the same transform for the anatomical image (QC) and its binary mask.
+# Nearest-neighbour interpolation preserves the discrete mask labels.
+mrtransform \
+    "$T1_BRAIN_NII" \
+    "$T1_IN_DWI_NII" \
+    -linear rigid_T1toDWI.txt \
+    -template "$PREPROC_DWI_MIF" \
+    -force
+
+mrtransform \
+    "$T1_MASK_NII" \
+    "$T1_MASK_DWI_MIF" \
+    -linear rigid_T1toDWI.txt \
+    -template "$PREPROC_DWI_MIF" \
+    -interp nearest \
+    -force
+
+##############################################
+# STEP 9: Compute FA
+##############################################
+echo ""
+echo "Step 9: Computing FA map..."
 
 # Compute tensor
 dwi2tensor "$PREPROC_DWI_MIF" "${SUBJECT_NAME}_model-dti_tensor.mif" \
-    -mask "$T1_MASK_MIF" -force
+    -mask "$T1_MASK_DWI_MIF" -force
 
 # Extract FA
 tensor2metric "${SUBJECT_NAME}_model-dti_tensor.mif" \
@@ -295,20 +329,16 @@ mrconvert "${SUBJECT_NAME}_model-dti_FA.mif" \
     "${SUBJECT_NAME}_model-dti_FA.nii.gz" -force
 
 ##############################################
-# STEP 9: Register to MNI space
+# STEP 10: Register to MNI space
 ##############################################
 echo ""
-echo "Step 9: Registering FA to MNI space..."
-
-# Extract mean b0 for registration
-dwiextract "$PREPROC_DWI_MIF" - -bzero -force | mrmath - mean mean_b0_final.mif -axis 3 -force
-mrconvert mean_b0_final.mif mean_b0_final.nii.gz -force
+echo "Step 10: Registering FA to MNI space..."
 
 ##############################################
 # OPTION A: Direct b0 to MNI (FLIRT - simpler)
 ##############################################
 echo ""
-echo "Step 9A: Direct b0 to MNI registration (FLIRT)..."
+echo "Step 10A: Direct b0 to MNI registration (FLIRT)..."
 
 # run if file does not exist
 if [ ! -f "mean_b0_in_MNI.nii.gz" ]; then
@@ -340,12 +370,12 @@ echo "  - FA_in_MNI_direct.nii (direct b0->MNI registration)"
 # OPTION B: Via T1 using ANTs (more accurate)
 ##############################################
 echo ""
-echo "Step 9B: Registration via T1 using ANTs..."
+echo "Step 10B: Registration via T1 using ANTs..."
 
 # Check if T1_HDbet exists
 if [ -f "$T1_BRAIN_NII" ]; then
     
-    # Step 9b-i: Register T1 to MNI using ANTs
+    # Step 10b-i: Register T1 to MNI using ANTs
     # run if file does not exist
     if [ ! -f "T1_to_MNI_Warped.nii.gz" ]; then
          echo "  Registering T1 to MNI..."
@@ -359,7 +389,7 @@ if [ -f "$T1_BRAIN_NII" ]; then
         echo "  T1 to MNI registration already exists, skipping."
     fi
     
-    # Step 8b-ii: Register mean_b0 to T1 using ANTs (rigid)
+    # Step 10b-ii: Register mean_b0 to T1 using ANTs (rigid)
     # run if file does not exist
     if [ ! -f "b0_to_T1_0GenericAffine.mat" ]; then
         
@@ -373,7 +403,7 @@ if [ -f "$T1_BRAIN_NII" ]; then
         echo "  b0 to T1 registration already exists, skipping."
     fi  
     
-    # Step 9b-iii: Apply combined transforms to FA
+    # Step 10b-iii: Apply combined transforms to FA
     echo "  Applying combined transforms to FA..."
     antsApplyTransforms -d 3 \
         -i "${SUBJECT_NAME}_model-dti_FA.nii.gz" \
@@ -391,28 +421,6 @@ if [ -f "$T1_BRAIN_NII" ]; then
 else
     echo "  WARNING: $T1_BRAIN_NII not found. Skipping ANTs via T1 option."
 fi
-
-### Register T1 to DWI space (rigid) for QC
-echo ""
-echo "Registering T1 to DWI space (rigid) for QC..."
-
-flirt \
-    -in $T1_BRAIN_NII \
-    -ref mean_b0_final.nii.gz \
-    -dof 6 \
-    -omat rigid_T1toDWI.mat
-
-transformconvert \
-    rigid_T1toDWI.mat \
-    $T1_BRAIN_NII \
-    mean_b0_final.nii.gz \
-    flirt_import \
-    rigid_T1toDWI.txt
-
-mrtransform \
-    $T1_BRAIN_NII \
-    $ANAT_DIR/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz \
-    -linear rigid_T1toDWI.txt
 
 echo ""
 echo "Quality check files created:"

@@ -15,14 +15,17 @@ bash scripts/3_deconvolution/1_run_dwi2resp_jobs.sh /path/to/bids
 ```
 
 **Substep:** 1. Estimate each session's response functions
-**Processing:** Convert the preprocessed DWI to MRtrix, resample the T1 mask to the DWI grid, and run `dwi2response dhollander`
+**Processing:** Convert the preprocessed DWI to MRtrix, load the HD-BET mask
+registered to final DWI space during preprocessing, and run `dwi2response
+dhollander` within that mask.
 
 **Inputs:**
 
 - `<sub>_desc-preproc_dwi.nii.gz`: the final preprocessed diffusion image.
 - `<sub>_desc-preproc_dwi.bvec`: the corrected diffusion-gradient directions.
 - `<sub>_desc-preproc_dwi.bval`: the b-value of each DWI volume.
-- `../anat/<sub>_desc-hdbet_T1w_bet.nii.gz`: the T1w brain mask.
+- `<sub>_desc-resampled_bet.mif`: the HD-BET mask registered to final DWI
+  space during preprocessing.
 
 **Outputs:**
 

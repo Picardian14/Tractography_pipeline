@@ -116,8 +116,6 @@ subject directory name, for example `sub-001`.
 - `eddy_unwarped_images.eddy_outlier_map`: eddy's slice-outlier map.
 - `percentageOutliers.txt`: the calculated percentage of outlier slices.
 - `Diff_preproc.mif`: the eddy-corrected DWI converted back to MRtrix format.
-- `../anat/<sub>_desc-hdbet_T1w_bet.mif`: the T1w brain mask converted to
-  MRtrix format.
 
 **Substep:** 7. Bias correction and final export  
 **Processing:** ANTs bias-field correction and gradient export. Bias field corrections removes imhomogeneities in brighness. If this step worstens the image you can skip it. 
@@ -136,13 +134,27 @@ subject directory name, for example `sub-001`.
 - `<sub>_desc-preproc_dwi.bvec`: the final exported, rotated gradient
   directions.
 
-**Substep:** 8. DTI/FA  
-**Processing:** Fit the tensor and calculate FA
+**Substep:** 8. Final b=0 and T1-to-DWI mask registration
+
+**Processing:** Calculate the final mean b=0, estimate the rigid T1-to-DWI
+transform using the brain-extracted T1w image, and apply it to the HD-BET mask
+on the final DWI grid with nearest-neighbour interpolation.
+
+**Outputs:**
+
+- `mean_b0_final.mif` and `mean_b0_final.nii.gz`: final DWI references.
+- `rigid_T1toDWI.mat` and `.txt`: T1w-to-DWI rigid transforms.
+- `<sub>_desc-resampled_bet.mif`: HD-BET mask registered to final DWI space.
+- `../anat/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz`: registered T1w image for QC.
+
+**Substep:** 9. DTI/FA
+
+**Processing:** Fit the tensor inside the registered HD-BET mask and calculate FA.
 
 **Inputs:**
 
 - `<sub>_desc-preproc_dwi.mif`.
-- `../anat/<sub>_desc-hdbet_T1w_bet.mif`.
+- `<sub>_desc-resampled_bet.mif`.
 
 **Outputs:**
 
@@ -150,8 +162,9 @@ subject directory name, for example `sub-001`.
 - `<sub>_model-dti_FA.mif`: the fractional-anisotropy map in MRtrix format.
 - `<sub>_model-dti_FA.nii.gz`: the fractional-anisotropy map in NIfTI format.
 
-**Substep:** 9. Registration/QC images  
-**Processing:** Direct b=0-to-MNI registration, FA-to-MNI via T1, and rigid T1-to-DWI registration
+**Substep:** 10. Registration/QC images
+
+**Processing:** Direct b=0-to-MNI registration and FA-to-MNI via T1.
 
 **Inputs:**
 
@@ -162,8 +175,6 @@ subject directory name, for example `sub-001`.
 
 **Outputs:**
 
-- `mean_b0_final.mif`: the final mean b=0 reference image in MRtrix format.
-- `mean_b0_final.nii.gz`: the final mean b=0 reference image in NIfTI format.
 - `mean_b0_in_MNI.nii.gz`: the mean b=0 transformed to MNI space.
 - `FA_in_MNI_direct.nii`: FA transformed directly from DWI to MNI space.
 - `FA_in_MNI_via_T1.nii`: FA transformed to MNI space through the T1w
@@ -172,13 +183,10 @@ subject directory name, for example `sub-001`.
 - `T1_to_MNI_0GenericAffine.mat`: the affine T1w-to-MNI transform.
 - `T1_to_MNI_Warped.nii.gz`: the T1w image transformed to MNI space for QC.
 - `b0_to_T1_0GenericAffine.mat`: the rigid b=0-to-T1w transform.
-- `rigid_T1toDWI.mat` and `.txt`: the rigid T1w-to-DWI transform in FSL and
-  MRtrix formats.
-- `../anat/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz`: the T1w image positioned in
-  diffusion coordinates for QC and later overlays.
 
-The T1-to-DWI transform maps the anatomical image into diffusion coordinates
-without reslicing it to the lower-resolution DWI grid.
+The registered HD-BET mask is explicitly resliced onto the final DWI grid so
+that it can be used safely by tensor fitting, response estimation, CSD, and
+intensity normalization.
 
 ## Cleaning intermediates
 
