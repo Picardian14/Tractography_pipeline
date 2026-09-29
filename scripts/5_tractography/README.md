@@ -78,6 +78,8 @@ mrview ../anat/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz \
   -tractography.load "${subject}_model-${model}_tractogram-200k.tck"
 ```
 
+Make sure to use the 200k tractogram for Qc
+
 The tractogram should cover the main white matter and cortical gyri. Check for
 streamlines outside the brain, crossing CSF or skull, missing corpus callosum,
 or systematically noisy, fragmented, or sharp trajectories. If off-brain

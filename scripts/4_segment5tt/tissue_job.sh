@@ -52,6 +52,7 @@ if [ ! -f "${subject_id}_desc-coreg_5tt.mif" ]; then
     5ttgen fsl "${subject_id}_T1w.mif" "${subject_id}_desc-nocoreg_5tt.mif" -force        
     mrconvert "${subject_id}_desc-nocoreg_5tt.mif" "${subject_id}_desc-nocoreg_5tt.nii.gz" -force
     fslroi "${subject_id}_desc-nocoreg_5tt.nii.gz" "${subject_id}_desc-nocoreg_5tt_vol0.nii.gz" 0 1
+    # TODO REUTILIZE THE T1 CALCULATION 
     flirt -in "${subject_id}_desc-nocoreg_5tt_vol0.nii.gz" \
         -ref "${dwi_dir}/mean_b0_final.nii.gz" \
         -interp nearestneighbour -dof 6 \

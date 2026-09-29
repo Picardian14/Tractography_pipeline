@@ -209,7 +209,7 @@ boundaries:
 
 ```bash
 mrview mean_b0_final.nii.gz \
-  -overlay.load ../anat/T1_in_dwi_space.nii.gz \
+  -overlay.load ../anat/${subject}_T1_in_dwi_space.nii.gz \
   -overlay.threshold_max 60
 ```
 
