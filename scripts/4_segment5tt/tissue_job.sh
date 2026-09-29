@@ -51,18 +51,14 @@ if [ ! -f "${subject_id}_desc-coreg_5tt.mif" ]; then
     mrconvert "$t1_file" "${subject_id}_T1w.mif" -force
     5ttgen fsl "${subject_id}_T1w.mif" "${subject_id}_desc-nocoreg_5tt.mif" -force        
     mrconvert "${subject_id}_desc-nocoreg_5tt.mif" "${subject_id}_desc-nocoreg_5tt.nii.gz" -force
-    fslroi "${subject_id}_desc-nocoreg_5tt.nii.gz" "${subject_id}_desc-nocoreg_5tt_vol0.nii.gz" 0 1
-    # TODO REUTILIZE THE T1 CALCULATION 
-    flirt -in "${subject_id}_desc-nocoreg_5tt_vol0.nii.gz" \
-        -ref "${dwi_dir}/mean_b0_final.nii.gz" \
-        -interp nearestneighbour -dof 6 \
-        -omat "${subject_id}_from-T1w_to-dwi_rigid.mat"
-    transformconvert "${subject_id}_from-T1w_to-dwi_rigid.mat" \
-        "${subject_id}_desc-nocoreg_5tt_vol0.nii.gz" \
-        "${dwi_dir}/mean_b0_final.nii.gz" \
-        flirt_import "${subject_id}_from-T1w_to-dwi_rigid.txt" -force
+    if [ ! -f "${dwi_dir}/rigid_T1toDWI.mat" ] || [ ! -f "${dwi_dir}/rigid_T1toDWI.txt" ]; then
+        echo "Missing T1-to-DWI transform from preprocessing in ${dwi_dir}" >&2
+        exit 1
+    fi
+    cp -f "${dwi_dir}/rigid_T1toDWI.mat" "${subject_id}_from-T1w_to-dwi_rigid.mat"
+    cp -f "${dwi_dir}/rigid_T1toDWI.txt" "${subject_id}_from-T1w_to-dwi_rigid.txt"
     mrtransform "${subject_id}_desc-nocoreg_5tt.nii.gz" \
-        -linear "${subject_id}_from-T1w_to-dwi_rigid.txt" -inverse \
+        -linear "${subject_id}_from-T1w_to-dwi_rigid.txt" \
         "${subject_id}_desc-coreg_5tt.nii.gz" -force
     mrconvert "${subject_id}_desc-coreg_5tt.nii.gz" \
         "${subject_id}_desc-coreg_5tt.mif" -force
