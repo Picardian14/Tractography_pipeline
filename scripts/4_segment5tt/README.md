@@ -75,6 +75,18 @@ Jobs run in `<sub>/<ses>/dwi/`.
 - `<sub>_desc-coreg_gmwmi.mif`: the GM–WM interface image used to seed
   tractography.
 
+## Cleaning intermediates
+
+After Stage 4 completes, preview removable conversion and registration working
+files with:
+
+```bash
+bash scripts/cleanup_intermediates.sh --stage 4 --dry-run /path/to/bids
+```
+
+The registered 5TT and GMWMI needed by tractography are retained. The
+unregistered 5TT used for QC is retained unless `--include-qc` is supplied.
+
 ## Visual quality control
 
 Run these commands from one session's `dwi/` directory, following the overlay

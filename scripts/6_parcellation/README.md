@@ -103,6 +103,19 @@ bash scripts/6_parcellation/2_run_parcellate_ss3t_jobs.sh /path/to/bids
 The script uses the SIFT2 weights directly. It does not apply inverse-node-
 volume scaling or per-subject maximum normalization.
 
+## Cleaning intermediates
+
+After connectome construction completes, preview redundant atlas conversion
+files with:
+
+```bash
+bash scripts/cleanup_intermediates.sh --stage 6 --dry-run /path/to/bids
+```
+
+Set `--freesurfer-dir` if FreeSurfer outputs are outside the repository. The
+mapped annotations, parcel image, connectome, and streamline assignments are
+retained.
+
 ## Visual quality control
 
 From `<sub>/<ses>/dwi/`, set the repository path and overlay the parcels on the T1

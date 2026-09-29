@@ -180,6 +180,18 @@ subject directory name, for example `sub-001`.
 The T1-to-DWI transform maps the anatomical image into diffusion coordinates
 without reslicing it to the lower-resolution DWI grid.
 
+## Cleaning intermediates
+
+After preprocessing completes, preview removable Stage 2 working files with:
+
+```bash
+bash scripts/cleanup_intermediates.sh --stage 2 --dry-run /path/to/bids
+```
+
+The final preprocessed DWI and gradients, masks, DTI/FA products, mean b=0,
+anatomical derivatives, transforms, and registration images are retained. Add
+`--include-qc` only after inspecting `noise.mif` and `residual.mif`.
+
 ## Visual quality control
 
 

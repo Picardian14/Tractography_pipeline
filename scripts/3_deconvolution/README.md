@@ -144,6 +144,17 @@ bash scripts/3_deconvolution/3_do_ss3t_local.sh /path/to/bids
 
 Both FOD routes use the same `<sub>_desc-resampled_bet.mif` mask.
 
+To reclaim space while retaining the normalized WM FOD needed by tractography,
+use the pipeline-wide intermediate cleaner:
+
+```bash
+bash scripts/cleanup_intermediates.sh --stage 3 --dry-run /path/to/bids
+```
+
+It preserves the individual and mean response text files for reproducibility.
+The separate `cleanup.sh` below instead removes Stage 3 outputs for rerunning
+the analysis.
+
 ## Cleaning Stage 3 outputs
 
 Preview all Stage 3 files that would be removed:

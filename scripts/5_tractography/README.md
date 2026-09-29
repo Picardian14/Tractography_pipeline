@@ -65,6 +65,18 @@ Jobs run in `<sub>/<ses>/dwi/`. Replace `<model>` with `msmt` or `ss3t`.
 The 200k tractogram is only for visual QC. Later connectome construction uses
 the 10M tractogram and its matching SIFT2 weights.
 
+## Cleaning intermediates
+
+After Stage 5 completes, preview removable SIFT2 diagnostic files with:
+
+```bash
+bash scripts/cleanup_intermediates.sh --stage 5 --dry-run /path/to/bids
+```
+
+The 10M tractogram and matching weights needed by Stage 6 are always retained.
+The 200k tractogram is also retained unless `--include-qc` is supplied after
+visual review.
+
 ## Visual quality control
 
 From one session's `dwi/` directory, inspect the smaller tractogram as in
