@@ -16,7 +16,7 @@ PREPROCESSING_START_TIME=$(date +%s)
 module load MRtrix
 module load FSL
 module load ANTs
-module load FreeSurfer
+module load FreeSurfer/6.0.0
 module load singularity
 
 if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
