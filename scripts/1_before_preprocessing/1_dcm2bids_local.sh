@@ -41,7 +41,7 @@ for file in "${dicom_inputs[@]}"; do
     fi
     seen_subjects[$subject_label]=1
 
-    subject_output="/output/tmp_dcm2bids/sub-${subject_label}"
+    subject_output="/output/sub-${subject_label}"
     mkdir -p "$subject_output"
 
     echo "Converting sub-${subject_label} locally"

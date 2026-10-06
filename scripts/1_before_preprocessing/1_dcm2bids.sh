@@ -34,7 +34,7 @@ for file in "${dicom_inputs[@]}"; do
     fi
     seen_subjects[$subject_label]=1
 
-    job_dir="${converted_data_dir}/tmp_dcm2bids/sub-${subject_label}"
+    job_dir="${converted_data_dir}/sub-${subject_label}"
     mkdir -p "$job_dir"
     echo "Submitting DICOM conversion for sub-${subject_label}"
     if ! sbatch --job-name="dcm2bids-sub-${subject_label}" \

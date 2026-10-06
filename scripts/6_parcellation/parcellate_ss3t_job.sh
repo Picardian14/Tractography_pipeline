@@ -63,9 +63,9 @@ mri_surf2surf --srcsubject fsaverage --trgsubject "$fs_subject_id" --hemi rh \
     --sval-annot "$ATLAS_DIR/rh.${ATLAS_LABEL_NAME}.annot" \
     --tval "$SUBJECTS_DIR/$fs_subject_id/label/rh.${ATLAS_LABEL_NAME}.annot"
 
-mri_aparc2aseg -s "$fs_subject_id" \
-    -o "$SUBJECTS_DIR/$fs_subject_id/mri/$ATLAS_LABEL_NAME.mgz" \
-    -annot "$ATLAS_LABEL_NAME"
+mri_aparc2aseg --s "$fs_subject_id" \
+    --o "$SUBJECTS_DIR/$fs_subject_id/mri/$ATLAS_LABEL_NAME.mgz" \
+    --annot "$ATLAS_LABEL_NAME"
 mrconvert "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}.mgz" \
     "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}.nii.gz" -force
 labelconvert \
