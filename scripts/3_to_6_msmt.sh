@@ -22,6 +22,7 @@ fi
 BIDS_ROOT="$(readlink -f "$1")"
 OUTPUT_DIR="${OUTPUT_DIR:-${PIPELINE_ROOT}/outputs}"
 FREESURFER_SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR:-${PIPELINE_ROOT}/freesurfer}"
+export FREESURFER_SUBJECTS_DIR
 workflow_timing_log="${WORKFLOW_TIMING_LOG:-${OUTPUT_DIR}/3_to_6_msmt-${workflow_start_epoch}.timing.log}"
 workflow_timing_log=$(readlink -m "$workflow_timing_log")
 

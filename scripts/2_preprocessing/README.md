@@ -1,5 +1,69 @@
 # Stage 2: preprocessing
 
+## Preparing already processed HCP data
+
+HCP preparation is separate from the raw DoC preprocessing below. For a
+single-subject trial, prepare a separate output directory:
+
+```bash
+bash scripts/2_preprocessing/prepare_hcp_for_processing.sh \
+  /mnt/data1/HCP_YOUNG_ADULTS_UNRELATED_BIDS \
+  /path/on/shared/filesystem/hcp_test --subject sub-100307
+
+OUTPUT_DIR=/path/on/shared/filesystem/hcp_test/slurm_logs \
+FREESURFER_SUBJECTS_DIR=/path/on/shared/filesystem/hcp_test/freesurfer \
+  bash scripts/3_to_6_msmt.sh /path/on/shared/filesystem/hcp_test
+```
+
+The source must retain `sourcedata/hcp/sub-<label>/T1w/` from the Recommended
+archives. Python 3, NumPy, NiBabel, and MRtrix are required. Outputs use
+`sub-<label>/ses-1/` and contain independent copies of the selected HCP inputs.
+They can be moved to another host without the source dataset. Rerunning
+preparation verifies existing copies and reuses completed MRtrix outputs; an
+input disagreement stops preparation instead of overwriting analysis inputs.
+
+Geometry, gradient counts, and binary masks are checked before conversion.
+The final diffusion mask is reused as `<sub>_desc-resampled_bet.mif`, the legacy
+name consumed by CSD. The 0.7 mm anatomical mask is saved as
+`anat/<sub>_space-T1w_desc-brain_mask.nii.gz`; tissue generation reuses it.
+`rigid_T1toDWI.txt` contains an identity in MRtrix physical coordinates, with
+provenance in `rigid_T1toDWI.json`, because HCP already registered diffusion to
+ACPC T1w space. No additional DWI preprocessing or registration is performed.
+
+From the prepared session's `dwi/` directory, inspect the inputs:
+
+```bash
+subject=sub-100307
+mrview mean_b0_final.nii.gz \
+  -overlay.load "${subject}_desc-resampled_bet.mif"
+mrview mean_b0_final.nii.gz \
+  -overlay.load "../anat/${subject}_T1_in_dwi_space.nii.gz"
+```
+
+After stages 4--6 finish, inspect the anatomical constraints and parcels:
+
+```bash
+mrview "../anat/${subject}_T1_in_dwi_space.nii.gz" \
+  -overlay.load "${subject}_desc-coreg_5tt.mif" \
+  -overlay.load "${subject}_desc-coreg_gmwmi.mif"
+mrview "../anat/${subject}_T1_in_dwi_space.nii.gz" \
+  -overlay.load "${subject}_atlas-schaefer100-yeo7_space-dwi_parcels.nii.gz"
+```
+
+Check the GM–WM interface, cortex, ventricles, cerebellum, and parcel boundaries
+in all three planes. The scripts preserve anatomical tissue/parcel resolution;
+the grids may differ while physical coordinates remain aligned. For HCP's
+identity mapping, the tissue transform itself should produce no displacement.
+
+Regression checks use small synthetic images and real MRtrix transformations,
+with external segmentation/FreeSurfer/scheduler calls replaced by test stubs:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+## Raw DoC preprocessing
+
 This stage preprocesses one T1w image and one DWI series per BIDS session. The
 launcher submits one Slurm job per `sub-*/ses-*` directory:
 

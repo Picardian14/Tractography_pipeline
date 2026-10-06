@@ -4,6 +4,8 @@
 #SBATCH --mail-user=ivan.mindlin@icm-institute.org
 #SBATCH --mail-type=ALL
 
+set -eo pipefail
+
 JOB_START_TIME=$SECONDS
 report_processing_time() {
     local exit_status=$?
@@ -55,6 +57,22 @@ if [ -f "${subject_folder}_model-ss3t_atlas-${ATLAS_LABEL_NAME}_connectome.csv" 
     exit 0
 fi
 
+# A dedicated trial SUBJECTS_DIR also needs FreeSurfer's atlas reference.
+if [ ! -d "$SUBJECTS_DIR/fsaverage" ]; then
+    if [ ! -d "$FREESURFER_HOME/subjects/fsaverage" ]; then
+        echo "Cannot resolve fsaverage for $SUBJECTS_DIR" >&2
+        exit 1
+    fi
+    # Another subject's parcellation job may create the link first.
+    ln -s "$FREESURFER_HOME/subjects/fsaverage" "$SUBJECTS_DIR/fsaverage" 2>/dev/null || \
+        [ -d "$SUBJECTS_DIR/fsaverage" ]
+fi
+t1_to_dwi="${session_dir}/dwi/rigid_T1toDWI.txt"
+if [ ! -f "$tracks" ] || [ ! -f "$t1_to_dwi" ]; then
+    echo "Missing tractogram or T1-to-DWI transform for $session_dir" >&2
+    exit 1
+fi
+
 mri_surf2surf --srcsubject fsaverage --trgsubject "$fs_subject_id" --hemi lh \
     --sval-annot "$ATLAS_DIR/lh.${ATLAS_LABEL_NAME}.annot" \
     --tval "$SUBJECTS_DIR/$fs_subject_id/label/lh.${ATLAS_LABEL_NAME}.annot"
@@ -75,10 +93,16 @@ labelconvert \
     "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}_parcels.nii.gz" \
     -force
 
+# Place FreeSurfer parcels in the same physical coordinates as the tractogram.
+# Without reslicing, this preserves the anatomical grid and integer labels.
+parcels_dwi="${subject_folder}_atlas-${ATLAS_LABEL_NAME}_space-dwi_parcels.nii.gz"
+mrtransform "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}_parcels.nii.gz" \
+    "$parcels_dwi" -linear "$t1_to_dwi" -force
+
 tck2connectome -symmetric \
     -tck_weights_in "$sift_weights" \
     "$tracks" \
-    "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}_parcels.nii.gz" \
+    "$parcels_dwi" \
     "${subject_folder}_model-ss3t_atlas-${ATLAS_LABEL_NAME}_connectome.csv" \
     -out_assignment \
     "${subject_folder}_model-ss3t_atlas-${ATLAS_LABEL_NAME}_assignments.csv" \

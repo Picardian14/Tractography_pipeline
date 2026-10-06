@@ -8,6 +8,8 @@
 #SBATCH --mail-user=ivan.mindlin@icm-institute.org
 #SBATCH --mail-type=ALL
 
+set -eo pipefail
+
 JOB_START_TIME=$SECONDS
 report_processing_time() {
     local exit_status=$?
@@ -32,18 +34,32 @@ echo "Job Doing $session_dir"
 echo "Current working directory: $(pwd)"
 subject=$(basename "$(dirname "$session_dir")")
 
-mrconvert ${subject}_desc-preproc_dwi.nii.gz ${subject}_desc-preproc_dwi.mif -fslgrad ${subject}_desc-preproc_dwi.bvec ${subject}_desc-preproc_dwi.bval -force -force 
+if [ ! -f "${subject}_desc-preproc_dwi.mif" ]; then
+    mrconvert "${subject}_desc-preproc_dwi.nii.gz" "${subject}_desc-preproc_dwi.mif" \
+        -fslgrad "${subject}_desc-preproc_dwi.bvec" "${subject}_desc-preproc_dwi.bval" -force
+fi
 if [ ! -f "${subject}_desc-resampled_bet.mif" ]; then
-    if [ ! -f "rigid_T1toDWI.txt" ]; then
-        echo "Missing T1-to-DWI transform: $(pwd)/rigid_T1toDWI.txt" >&2
-        exit 1
+    if [ -f "${subject}_desc-preproc_dwi_mask.nii.gz" ]; then
+        # Recreate the MRtrix copy from a supplied final DWI mask, even after
+        # intermediate cleanup. DoC's earlier eddy b0 mask is not this input.
+        mrconvert "${subject}_desc-preproc_dwi_mask.nii.gz" \
+            "${subject}_desc-resampled_bet.mif" -datatype bit -force
+    else
+        if [ ! -f "rigid_T1toDWI.txt" ]; then
+            echo "Missing T1-to-DWI transform: $(pwd)/rigid_T1toDWI.txt" >&2
+            exit 1
+        fi
+        t1_mask="${session_dir}/anat/${subject}_space-T1w_desc-brain_mask.nii.gz"
+        if [ ! -f "$t1_mask" ]; then
+            t1_mask="${session_dir}/anat/${subject}_desc-hdbet_T1w_bet.nii.gz"
+        fi
+        mrconvert "$t1_mask" \
+            "${subject}_desc-hdbet_T1w_bet.mif" -force
+        mrtransform "${subject}_desc-hdbet_T1w_bet.mif" \
+            -linear rigid_T1toDWI.txt \
+            -template "${subject}_desc-preproc_dwi.mif" \
+            -interp nearest "${subject}_desc-resampled_bet.mif" -force
     fi
-    mrconvert "${session_dir}/anat/${subject}_desc-hdbet_T1w_bet.nii.gz" \
-        "${subject}_desc-hdbet_T1w_bet.mif" -force
-    mrtransform "${subject}_desc-hdbet_T1w_bet.mif" \
-        -linear rigid_T1toDWI.txt \
-        -template "${subject}_desc-preproc_dwi.mif" \
-        -interp nearest "${subject}_desc-resampled_bet.mif" -force
 fi
 dwi2response dhollander "${subject}_desc-preproc_dwi.mif" \
     "${subject}_desc-dhollander_response-wm.txt" \

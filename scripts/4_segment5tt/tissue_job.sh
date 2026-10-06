@@ -12,6 +12,8 @@
 # --mem
 # --time
 
+set -eo pipefail
+
 JOB_START_TIME=$SECONDS
 report_processing_time() {
     local exit_status=$?
@@ -37,33 +39,46 @@ session_dir=$1
 subject_id=$(basename "$(dirname "$session_dir")")
 anat_dir="$session_dir/anat"
 dwi_dir="$session_dir/dwi"
-# Should be the raw T1
-t1_file=$(find "$anat_dir" -maxdepth 1 -type f \
-    -name "${subject_id}_T1w.nii.gz" \
-    ! -name "${subject_id}_desc-hdbet_T1w.nii.gz" \
-    ! -name "${subject_id}_desc-hdbet_T1w_mask.nii.gz" \
-    -print -quit)
+# DoC uses its original T1; HCP preparation supplies its high-resolution,
+# bias-corrected T1 under the same compatibility filename.
+t1_file="$anat_dir/${subject_id}_T1w.nii.gz"
+t1_mask="$anat_dir/${subject_id}_space-T1w_desc-brain_mask.nii.gz"
 echo "Job Doing $subject_id"
 echo "Current working directory: $(pwd)"
 
 if [ ! -f "${subject_id}_desc-coreg_5tt.mif" ]; then
+    for required_file in "$t1_file" "$dwi_dir/rigid_T1toDWI.txt"; do
+        if [ ! -f "$required_file" ]; then
+            echo "Missing tissue-generation input: $required_file" >&2
+            exit 1
+        fi
+    done
     echo "  - Generating 5tt coregistered to DWI..."
     mrconvert "$t1_file" "${subject_id}_T1w.mif" -force
-    5ttgen fsl "${subject_id}_T1w.mif" "${subject_id}_desc-nocoreg_5tt.mif" -force        
-    mrconvert "${subject_id}_desc-nocoreg_5tt.mif" "${subject_id}_desc-nocoreg_5tt.nii.gz" -force
-    if [ ! -f "${dwi_dir}/rigid_T1toDWI.mat" ] || [ ! -f "${dwi_dir}/rigid_T1toDWI.txt" ]; then
-        echo "Missing T1-to-DWI transform from preprocessing in ${dwi_dir}" >&2
-        exit 1
+    mask_options=()
+    # Reuse a supplied anatomical mask. With no supplied mask, retain the
+    # existing DoC segmentation behavior, including FSL brain extraction.
+    if [ -f "$t1_mask" ]; then
+        mask_options=(-mask "$t1_mask")
     fi
-    cp -f "${dwi_dir}/rigid_T1toDWI.mat" "${subject_id}_from-T1w_to-dwi_rigid.mat"
+    5ttgen fsl "${subject_id}_T1w.mif" "${subject_id}_desc-nocoreg_5tt.mif" \
+        "${mask_options[@]}" -force
+    mrconvert "${subject_id}_desc-nocoreg_5tt.mif" "${subject_id}_desc-nocoreg_5tt.nii.gz" -force
+    # Only the MRtrix transform is applied. Keep an FSL matrix for provenance
+    # when available; HCP's established alignment needs no FSL matrix.
+    if [ -f "${dwi_dir}/rigid_T1toDWI.mat" ]; then
+        cp -f "${dwi_dir}/rigid_T1toDWI.mat" "${subject_id}_from-T1w_to-dwi_rigid.mat"
+    fi
     cp -f "${dwi_dir}/rigid_T1toDWI.txt" "${subject_id}_from-T1w_to-dwi_rigid.txt"
     mrtransform "${subject_id}_desc-nocoreg_5tt.nii.gz" \
         -linear "${subject_id}_from-T1w_to-dwi_rigid.txt" \
         "${subject_id}_desc-coreg_5tt.nii.gz" -force
     mrconvert "${subject_id}_desc-coreg_5tt.nii.gz" \
         "${subject_id}_desc-coreg_5tt.mif" -force
-    5tt2gmwmi "${subject_id}_desc-coreg_5tt.mif" \
-        "${subject_id}_desc-coreg_gmwmi.mif" -force
 else
     echo "  - ${subject_id}_desc-coreg_5tt.mif already exists, skipping generation."
+fi
+if [ ! -f "${subject_id}_desc-coreg_gmwmi.mif" ]; then
+    5tt2gmwmi "${subject_id}_desc-coreg_5tt.mif" \
+        "${subject_id}_desc-coreg_gmwmi.mif" -force
 fi

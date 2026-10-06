@@ -20,6 +20,10 @@ Jobs run in `<sub>/<ses>/dwi/`.
 **Inputs:**
 
 - `../anat/<sub>_*_T1w.nii.gz`: the subject's original anatomical T1w image.
+- For HCP preparation, the compatibility T1 contains the supplied 0.7 mm
+  processed T1. Its `../anat/<sub>_space-T1w_desc-brain_mask.nii.gz` is passed to
+  `5ttgen fsl -mask`, avoiding another brain extraction. DoC retains its existing
+  FSL segmentation behavior when this optional supplied mask is absent.
 
 **Outputs:**
 
@@ -28,7 +32,8 @@ Jobs run in `<sub>/<ses>/dwi/`.
   coordinates. The volume - has the Grey Matter segmentation
 
 **Substep:** 2. Registration reference  
-**Processing:** Extract and average b=0 volumes (Step could be skipped if already calculated)
+**Processing:** Reuse the final mean b=0 produced during preprocessing or HCP
+preparation; this job does not estimate another registration.
 
 **Inputs:**
 
@@ -40,23 +45,21 @@ Jobs run in `<sub>/<ses>/dwi/`.
 - `mean_b0_final.nii.gz`: the same mean b=0 image in NIfTI format, used as the
   registration reference.
 
-**Substep:** 3. Rigid T1-to-DWI registration  
-**Processing:** FLIRT rigid registration and MRtrix transform conversion
+**Substep:** 3. T1-to-DWI mapping
+**Processing:** Reuse the MRtrix mapping produced during preparation
 
 **Inputs:**
 
-- `<sub>_desc-nocoreg_5tt.mif`.
-- `mean_b0_final.nii.gz`.
+- `rigid_T1toDWI.txt`: estimated for DoC; an explicit identity for the prepared
+  HCP products already in T1w coordinates.
+- `rigid_T1toDWI.mat`: optional FSL-format provenance for DoC.
 
 **Outputs:**
 
 - `<sub>_desc-nocoreg_5tt.nii.gz`: the unregistered 5TT image converted to
   NIfTI format.
-- `<sub>_desc-nocoreg_5tt_vol0.nii.gz`: the first 5TT volume used as the moving
-  image for rigid registration.
-- `<sub>_from-T1w_to-dwi_rigid.mat`: the rigid transform in FSL format.
-- `<sub>_from-T1w_to-dwi_rigid.txt`: the same rigid transform converted to
-  MRtrix format.
+- `<sub>_from-T1w_to-dwi_rigid.mat`: copied FSL matrix, when available.
+- `<sub>_from-T1w_to-dwi_rigid.txt`: the copied MRtrix mapping.
 
 **Substep:** 4. ACT images  
 **Processing:** Transform the 5TT into diffusion coordinates while retaining its anatomical grid; derive the GM–WM interface
@@ -96,10 +99,11 @@ style in `check_images.sh`.
 subject=sub-001
 ```
 
-Compare the unregistered and registered 5TT images on the mean b=0. The idea here is to verify that there there is a displacement between registered and non registered versions:
+Compare the anatomical and diffusion-coordinate 5TT images on the mean b=0.
+HCP's existing alignment means its identity transform produces no displacement:
 
 ```bash
-mrview "${subject}_desc-mean_b0.mif" \
+mrview mean_b0_final.mif \
   -overlay.load "${subject}_desc-nocoreg_5tt.mif" \
   -overlay.load "${subject}_desc-coreg_5tt.mif"
 ```
@@ -107,7 +111,7 @@ mrview "${subject}_desc-mean_b0.mif" \
 Inspect the final 5TT and GMWMI in all three planes:
 
 ```bash
-mrview "${subject}_desc-mean_b0.mif" \
+mrview mean_b0_final.mif \
   -overlay.load "${subject}_desc-coreg_5tt.mif" \
   -overlay.load "${subject}_desc-coreg_gmwmi.mif"
 ```

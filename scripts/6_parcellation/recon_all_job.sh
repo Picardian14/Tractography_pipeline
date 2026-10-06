@@ -12,6 +12,8 @@
 # --mem
 # --time
 
+set -eo pipefail
+
 JOB_START_TIME=$SECONDS
 report_processing_time() {
     local exit_status=$?
@@ -39,11 +41,7 @@ session_dir=$1
 subject_id=$(basename "$(dirname "$session_dir")")
 session_id=$(basename "$session_dir")
 fs_subject_id="${subject_id}_${session_id}"
-t1_file=$(find "$session_dir/anat" -maxdepth 1 -type f \
-    -name "${subject_id}_T1w.nii.gz" \
-    ! -name "${subject_id}_desc-hdbet_T1w.nii.gz" \
-    ! -name "${subject_id}_desc-hdbet_T1w_mask.nii.gz" \
-    -print -quit)
+t1_file="$session_dir/anat/${subject_id}_T1w.nii.gz"
 echo "Job Doing $fs_subject_id"
 export SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR}"
 # If the subject folder in SUBJECTS_DIR does not exist, run recon-all.
@@ -75,6 +73,10 @@ if [ -f "${SUBJECTS_DIR}/${fs_subject_id}/surf/lh.white" ] && [ -f "${SUBJECTS_D
 fi
 
 if [ ! -d "$SUBJECTS_DIR/$fs_subject_id" ]; then
+    if [ ! -f "$t1_file" ]; then
+        echo "Missing anatomical input: $t1_file" >&2
+        exit 1
+    fi
     echo "Subject folder $SUBJECTS_DIR/$fs_subject_id does not exist. Running recon-all with -i."
     run_recon_cmd -all -s "$fs_subject_id" \
     -i "/anat/$(basename "$t1_file")" \

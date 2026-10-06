@@ -14,6 +14,8 @@ Keep the connectome route consistent with deconvolution and tractography:
 bash scripts/6_parcellation/1_run_recon_all_jobs.sh /path/to/bids
 ```
 It is very important to setup properly here the FreeSurfers SUBJECTS_DIR path
+If an isolated subject directory has no `fsaverage`, parcellation links the
+reference from the loaded FreeSurfer installation before mapping the atlas.
 
 **Substep:** 1. FreeSurfer reconstruction  
 **Processing:** Run `recon-all -all` for each session
@@ -80,7 +82,10 @@ bash scripts/6_parcellation/2_run_parcellate_ss3t_jobs.sh /path/to/bids
 - `freesurfer/<sub>_<ses>/mri/schaefer100-yeo7.nii.gz`: the same parcellation in
   NIfTI format.
 - `freesurfer/<sub>_<ses>/mri/schaefer100-yeo7_parcels.nii.gz`: the label-converted
-  parcels image used by `tck2connectome`.
+  parcels image in anatomical coordinates.
+- `dwi/<sub>_atlas-schaefer100-yeo7_space-dwi_parcels.nii.gz`: the parcels after
+  applying `dwi/rigid_T1toDWI.txt`, used by `tck2connectome`. This header-only
+  transformation preserves the anatomical label grid and integer values.
 
 **Substep:** 2.3. Connectome  
 **Processing:** Run symmetric `tck2connectome` with zero diagonal and SIFT2 weights
@@ -91,7 +96,7 @@ bash scripts/6_parcellation/2_run_parcellate_ss3t_jobs.sh /path/to/bids
   the connectome.
 - `<sub>_model-<model>_sift2-weights.txt`: the matching per-streamline SIFT2
   weights.
-- `freesurfer/<sub>_<ses>/mri/schaefer100-yeo7_parcels.nii.gz`.
+- `<sub>_atlas-schaefer100-yeo7_space-dwi_parcels.nii.gz`.
 
 **Outputs:**
 
@@ -124,9 +129,9 @@ registered to diffusion space, following `check_images.sh`:
 ```bash
 PIPELINE_ROOT=/path/to/Tractography_pipeline
 subject=sub-001
-mrview ../anat/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz \
+mrview ../anat/${subject}_T1_in_dwi_space.nii.gz \
   -plane 2 -size 2048,1024 -autoscale \
-  -overlay.load "$PIPELINE_ROOT/freesurfer/$subject/mri/schaefer100-yeo7_parcels.nii.gz"
+  -overlay.load "${subject}_atlas-schaefer100-yeo7_space-dwi_parcels.nii.gz"
 ```
 
 Check that cortical labels follow the subject's cortex, no large parcels are

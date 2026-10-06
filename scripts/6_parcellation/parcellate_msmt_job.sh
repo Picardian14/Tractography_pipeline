@@ -8,6 +8,8 @@
 
 # Atlas configurations require an annotation label and lookup-table label.
 
+set -eo pipefail
+
 JOB_START_TIME=$SECONDS
 report_processing_time() {
     local exit_status=$?
@@ -71,6 +73,21 @@ fi
 
 
 if [ -f "$sift_weights" ]; then
+    # A dedicated trial SUBJECTS_DIR also needs FreeSurfer's atlas reference.
+    if [ ! -d "$SUBJECTS_DIR/fsaverage" ]; then
+        if [ ! -d "$FREESURFER_HOME/subjects/fsaverage" ]; then
+            echo "Cannot resolve fsaverage for $SUBJECTS_DIR" >&2
+            exit 1
+        fi
+        # Another subject's parcellation job may create the link first.
+        ln -s "$FREESURFER_HOME/subjects/fsaverage" "$SUBJECTS_DIR/fsaverage" 2>/dev/null || \
+            [ -d "$SUBJECTS_DIR/fsaverage" ]
+    fi
+    t1_to_dwi="${session_dir}/dwi/rigid_T1toDWI.txt"
+    if [ ! -f "$tracks" ] || [ ! -f "$t1_to_dwi" ]; then
+        echo "Missing tractogram or T1-to-DWI transform for $session_dir" >&2
+        exit 1
+    fi
 
     mri_surf2surf --srcsubject fsaverage --trgsubject "$fs_subject_id" --hemi lh \
     --sval-annot $ATLAS_DIR/lh.${ATLAS_LABEL_NAME}.annot \
@@ -85,10 +102,17 @@ if [ -f "$sift_weights" ]; then
     mrconvert "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}.mgz" "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}.nii.gz" -force
     labelconvert "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}.nii.gz" "$ATLAS_DIR/$TABLE_LABEL_NAME.txt" "$ATLAS_DIR/${TABLE_LABEL_NAME}_OUTPUT.txt" "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}_parcels.nii.gz" -force
 
+    # FreeSurfer conforming retains the input T1's scanner coordinates. Apply
+    # the same mapping as ACT tissues before assigning DWI streamline endpoints.
+    # A header-only transform preserves the anatomical grid and integer labels.
+    parcels_dwi="${subject_folder}_atlas-${ATLAS_LABEL_NAME}_space-dwi_parcels.nii.gz"
+    mrtransform "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}_parcels.nii.gz" \
+        "$parcels_dwi" -linear "$t1_to_dwi" -force
+
     tck2connectome -symmetric \
         -tck_weights_in "$sift_weights" \
         "$tracks" \
-        "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}_parcels.nii.gz" \
+        "$parcels_dwi" \
         "${subject_folder}_model-msmt_atlas-${ATLAS_LABEL_NAME}_connectome.csv" \
         -out_assignment "${subject_folder}_model-msmt_atlas-${ATLAS_LABEL_NAME}_assignments.csv" \
         -force -zero_diagonal -nthreads "${SLURM_CPUS_PER_TASK:-4}"
