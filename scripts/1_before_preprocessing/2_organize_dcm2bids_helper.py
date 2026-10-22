@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
-"""Organize dcm2bids-helper output into a small BIDS-compatible layout.
+"""Organize dcm2bids-helper output into the pipeline's subject/session layout.
 
-The script processes every ``sub-*`` directory below ``bids_root`` independently
-and writes into ``ses-1`` by default. It identifies T1w and DWI acquisitions
-from their dcm2niix JSON metadata and:
+The script processes every ``sub-*`` directory below ``bids_root``. A trailing
+session number is split from the subject name: ``sub-123_2`` is organized into
+``sub-123/ses-2/``, with filenames beginning ``sub-123_``. Subjects without a
+session suffix use ``ses-1`` by default (or ``--session-label``). It identifies
+T1w and DWI acquisitions from their dcm2niix JSON metadata and:
 
 * gives T1w and the original diffusion series standard names in ``anat/`` and
-  ``dwi/``; and
-* preserves every other imaging acquisition in ``other/`` with its dcm2niix
-  filename.
+  ``dwi/``;
+* keeps b=0 acquisitions, including inverted B0, alongside DWI in ``dwi/``; and
+* preserves every other imaging acquisition in ``other/`` using the same
+  subject-prefixed naming pattern (for example, ``sub-123_FLAIR.nii.gz``).
 
 This mirrors the existing DOC MRI dataset convention and keeps FLAIR, SWI, T2,
-reverse B0, and scanner-generated imaging derivatives from being discarded.
+scanner-generated imaging derivatives from being discarded. Inverted B0 uses
+``sub-123_acq-inverted_b0.*``; repeated acquisitions receive ``run-`` entities.
 Localizers, scouts, and secondary screenshots are omitted, as in the reference
 dataset. After a subject is organized successfully, its temporary helper and
 log directories are removed. Nothing is changed unless ``--apply`` is supplied.
@@ -29,6 +33,15 @@ from pathlib import Path
 
 NIFTI_EXTENSIONS = (".nii.gz", ".json")
 DWI_EXTENSIONS = (".nii.gz", ".json", ".bval", ".bvec")
+
+
+def subject_session(subject_dir: Path, default_session: str) -> tuple[Path, str]:
+    """Interpret a trailing _<number> as the acquisition session."""
+    match = re.fullmatch(r"(sub-[A-Za-z0-9]+)_([0-9]+)", subject_dir.name)
+    if match:
+        subject_id, session_label = match.groups()
+        return subject_dir.parent / subject_id, session_label
+    return subject_dir, default_session
 
 
 def strip_extension(path: Path, extension: str) -> str:
@@ -112,6 +125,7 @@ def contains(text: str, pattern: str) -> bool:
 def classify_series(series: list[dict]) -> dict[str, list[dict]]:
     acquisitions: dict[str, list[dict]] = {
         "dwi": [],
+        "b0": [],
         "T1w": [],
     }
     for item in series:
@@ -121,15 +135,60 @@ def classify_series(series: list[dict]) -> dict[str, list[dict]]:
         text = item["text"]
         image_type = item["image_type"]
         bvals = item["bvals"]
-        is_diffusion = "DIFFUSION" in image_type or contains(text, r"\bdiff(?:usion)?\b")
+        is_diffusion = "DIFFUSION" in image_type or contains(
+            text, r"(?:^|[^a-z0-9])(?:diff(?:usion)?|dti)(?:[^a-z0-9]|$)"
+        )
+        is_b0 = contains(text, r"(?:^|[^a-z0-9])b[ _=-]?0(?:[^a-z0-9]|$)")
 
-        # A true DWI contains diffusion-weighted volumes. An all-b=0 series is
-        # preserved under other/ with its original name instead.
+        # Keep b=0 references separate from the primary diffusion series:
+        # they support distortion correction but contain no diffusion weighting.
         if is_diffusion and bvals and any(abs(value) > 50 for value in bvals):
             acquisitions["dwi"].append(item)
+        elif (is_diffusion or is_b0) and (
+            (bvals and all(abs(value) <= 50 for value in bvals))
+            or (is_b0 and not bvals)
+        ):
+            acquisitions["b0"].append(item)
         elif contains(text, r"(?:\bt1\b|mprage)"):
             acquisitions["T1w"].append(item)
     return acquisitions
+
+
+def b0_suffix(item: dict, dwi: dict | None) -> str:
+    """Identify reversed phase encoding from the scan name or DWI metadata."""
+    phase = item["metadata"].get("PhaseEncodingDirection")
+    dwi_phase = dwi["metadata"].get("PhaseEncodingDirection") if dwi else None
+    opposite_phase = (
+        phase in ("i", "i-", "j", "j-", "k", "k-")
+        and dwi_phase in ("i", "i-", "j", "j-", "k", "k-")
+        and phase.rstrip("-") == dwi_phase.rstrip("-")
+        and phase != dwi_phase
+    )
+    if opposite_phase or contains(
+        item["text"], r"(?:^|[^a-z0-9])(?:inv(?:erted)?|rev(?:erse)?|rpe)(?:[^a-z0-9]|$)"
+    ):
+        return "acq-inverted_b0"
+    return "b0"
+
+
+def other_suffix(item: dict) -> str:
+    """Use recognizable scan labels, retaining a description for unknown scans."""
+    for suffix, pattern in (
+        ("FLAIR", r"flair"),
+        ("SWI", r"swi"),
+        ("T2w", r"(?:^|[^a-z0-9])t2(?:w|[^a-z0-9]|$)"),
+        ("T1w", r"(?:^|[^a-z0-9])t1(?:w|[^a-z0-9]|$)|mprage"),
+        ("ADC", r"(?:^|[^a-z0-9])adc(?:[^a-z0-9]|$)"),
+    ):
+        if contains(item["text"], pattern):
+            return suffix
+    description = (
+        item["metadata"].get("SeriesDescription")
+        or item["metadata"].get("ProtocolName")
+        or item["prefix"]
+    )
+    label = re.sub(r"[^A-Za-z0-9]", "", str(description)) or "unknown"
+    return f"acq-{label}_image"
 
 
 def choose_primary(items: list[dict], description: str) -> dict | None:
@@ -193,18 +252,33 @@ def plan_subject(
     helper = find_helper(subject_dir)
     series = read_series(helper) if helper else []
     acquisitions = classify_series(series)
-    subject_id = subject_dir.name
-    session_dir = subject_dir / f"ses-{session_label}"
+    output_subject, session_label = subject_session(subject_dir, session_label)
+    subject_id = output_subject.name
+    session_dir = output_subject / f"ses-{session_label}"
 
-    # Migrate output made by the previous sessionless version of this script.
-    moves: list[tuple[Path, Path]] = [
-        (source, session_dir / datatype / source.relative_to(legacy_dir))
+    # Also accept prior organized output. For suffixed input folders, move its
+    # session contents into the shared subject folder and drop the old suffix
+    # from filenames. Existing destinations are checked before anything moves.
+    legacy_roots = [subject_dir]
+    if output_subject != subject_dir:
+        legacy_roots.extend(sorted(path for path in subject_dir.glob("ses-*") if path.is_dir()))
+    legacy_dirs = [
+        legacy_root / datatype
+        for legacy_root in legacy_roots
         for datatype in ("anat", "dwi", "other")
-        for legacy_dir in (subject_dir / datatype,)
-        if legacy_dir.is_dir()
-        for source in sorted(legacy_dir.rglob("*"))
-        if source.is_file()
+        if (legacy_root / datatype).is_dir()
     ]
+    moves: list[tuple[Path, Path]] = []
+    for legacy_dir in legacy_dirs:
+        for source in sorted(legacy_dir.rglob("*")):
+            if not source.is_file():
+                continue
+            relative_path = source.relative_to(legacy_dir)
+            filename = source.name
+            if filename.startswith(subject_dir.name + "_"):
+                filename = subject_id + filename[len(subject_dir.name) :]
+            destination = session_dir / legacy_dir.name / relative_path.with_name(filename)
+            moves.append((source, destination))
     planned_destinations = {destination for _, destination in moves}
 
     def required_available(suffix: str, extensions: tuple[str, ...]) -> bool:
@@ -216,41 +290,52 @@ def plan_subject(
         ) or expected.issubset(planned_destinations)
 
     dwi = choose_primary(acquisitions["dwi"], "DWI")
-    if required_available("dwi", DWI_EXTENSIONS):
-        pass
-    elif dwi:
+    if dwi:
+        # Always plan newly supplied acquisitions. If this session already has
+        # data, the destination check must reject them before helper/ is removed.
         append_moves(moves, dwi, session_dir, "dwi", f"{subject_id}_dwi", DWI_EXTENSIONS)
-    else:
+    elif not required_available("dwi", DWI_EXTENSIONS):
         raise ValueError("no original diffusion acquisition with nonzero b-values found")
 
     t1w = choose_primary(acquisitions["T1w"], "T1w")
-    if required_available("T1w", NIFTI_EXTENSIONS):
-        pass
-    elif t1w:
+    if t1w:
         append_moves(moves, t1w, session_dir, "anat", f"{subject_id}_T1w")
-    else:
+    elif not required_available("T1w", NIFTI_EXTENSIONS):
         raise ValueError("no original T1w acquisition found")
 
-    # The reference DOC MRI dataset keeps non-T1 acquisitions under other/
-    # without renaming them. Preserve every useful remaining series before the
-    # temporary directory is removed, including sidecars and gradient files.
+    # Preserve all companion files before deleting helper/, using one basename
+    # per acquisition so NIfTI, metadata, and gradients remain paired.
     selected_prefixes = {item["prefix"] for item in (dwi, t1w) if item}
+    selected_prefixes.update(item["prefix"] for item in acquisitions["b0"])
     other_series = [
         item
         for item in series
         if item["prefix"] not in selected_prefixes and preserve_under_other(item)
     ]
-    other_sources = []
-    if helper:
-        other_sources = sorted(
-            source
-            for item in other_series
-            for source in helper.glob(f"{item['prefix']}.*")
-            if source.is_file()
-        )
-    for source in other_sources:
-        relative_name = source.relative_to(helper)
-        moves.append((source, session_dir / "other" / relative_name))
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for item in acquisitions["b0"]:
+        groups.setdefault(("dwi", b0_suffix(item, dwi)), []).append(item)
+    for item in other_series:
+        groups.setdefault(("other", other_suffix(item)), []).append(item)
+
+    other_count = 0
+    for (datatype, suffix), items in groups.items():
+        for run, item in enumerate(items, start=1):
+            # Repeated scans and scanner derivatives can share a modality label.
+            # Number each member rather than overwriting a previous acquisition.
+            entities, _, modality = suffix.rpartition("_")
+            name_parts = [subject_id]
+            if entities:
+                name_parts.append(entities)
+            if len(items) > 1:
+                name_parts.append(f"run-{run}")
+            basename = "_".join([*name_parts, modality])
+            for source in sorted(item["helper"].iterdir()):
+                if source.is_file() and source.name.startswith(item["prefix"] + "."):
+                    extension = source.name[len(item["prefix"]) :]
+                    moves.append((source, session_dir / datatype / f"{basename}{extension}"))
+                    if datatype == "other":
+                        other_count += 1
 
     destinations = [destination for _, destination in moves]
     duplicates = sorted({path for path in destinations if destinations.count(path) > 1})
@@ -261,12 +346,8 @@ def plan_subject(
         raise ValueError("destination already exists: " + ", ".join(map(str, existing)))
 
     removals = cleanup_paths(subject_dir)
-    removals.extend(
-        subject_dir / datatype
-        for datatype in ("anat", "dwi", "other")
-        if (subject_dir / datatype).is_dir()
-    )
-    return moves, removals, len(other_sources)
+    removals.extend(legacy_dirs)
+    return moves, removals, other_count
 
 
 def parse_args() -> argparse.Namespace:
@@ -275,7 +356,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--session-label",
         default="1",
-        help="BIDS session label for converted data (default: 1)",
+        help="fallback session label for subjects without a _<number> suffix (default: 1)",
     )
     parser.add_argument(
         "--apply",
@@ -299,15 +380,25 @@ def main() -> int:
     had_error = False
     for subject in subjects:
         try:
+            output_subject, session_label = subject_session(subject, args.session_label)
+            # A combined subject folder may contain only ses-2 (or other
+            # sessions). It is already organized and has no default-session input.
+            has_legacy_data = any((subject / datatype).is_dir() for datatype in ("anat", "dwi", "other"))
+            if output_subject == subject and not find_helper(subject) and not has_legacy_data:
+                if any(path.is_dir() for path in subject.glob("ses-*")):
+                    print(f"ALREADY ORGANIZED {subject.name}")
+                    continue
             moves, removals, preserved_count = plan_subject(subject, args.session_label)
             action = "ORGANIZE" if args.apply else "PLAN"
-            print(f"{action} {subject.name}")
+            print(f"{action} {subject.name} -> {output_subject.name}/ses-{session_label}")
             for source, destination in moves:
                 print(f"  MOVE {source} -> {destination}")
             if preserved_count:
                 print(f"  PRESERVE {preserved_count} non-T1/DWI files under other/")
             for path in removals:
                 print(f"  REMOVE {path}")
+            if output_subject != subject:
+                print(f"  REMOVE {subject} (only if empty after organization)")
 
             if args.apply:
                 for source, destination in moves:
@@ -318,6 +409,14 @@ def main() -> int:
                         shutil.rmtree(path)
                     else:
                         path.unlink()
+                if output_subject != subject:
+                    # Remove empty containers with rmdir so unrelated files in
+                    # an old subject/session folder are never removed recursively.
+                    for path in sorted(subject.glob("ses-*")):
+                        if path.is_dir() and not any(path.iterdir()):
+                            path.rmdir()
+                    if not any(subject.iterdir()):
+                        subject.rmdir()
         except (OSError, ValueError) as error:
             had_error = True
             print(f"SKIP {subject.name}: {error}", file=sys.stderr)
