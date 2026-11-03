@@ -71,6 +71,78 @@ launcher submits one Slurm job per `sub-*/ses-*` directory:
 bash scripts/2_preprocessing/1_submits_all_subs_preproc.sh /path/to/bids
 ```
 
+### Choosing Synb0 or acquired reverse-PE B0 images
+
+Synb0 is the default. Select the method with the optional second argument:
+
+```bash
+bash scripts/2_preprocessing/1_submits_all_subs_preproc.sh /path/to/bids synb0
+bash scripts/2_preprocessing/1_submits_all_subs_preproc.sh /path/to/bids reversepe
+```
+
+For `reversepe`, the launcher looks for `dwi/*_acq-inverted*_b0.nii.gz` (the
+organizer's output) or `fmap/*_epi.nii.gz`. Exactly one candidate with matching
+JSON must exist in each session; sessions without this are skipped. The image
+must be a B0-only image or series, with the opposite `j`/`j-` phase encoding
+to the primary DWI. A different spatial grid is handled automatically: the
+reverse mean B0 is resampled onto the primary DWI B0 grid using its scanner
+coordinates and sinc interpolation. The acquired images are retained, and
+`INPUTS/reverse_b0_native.nii.gz` preserves the mean on its original grid.
+Both JSON files must supply their
+own positive `TotalReadoutTime`. NumPy and NiBabel must be available to Python 3
+for geometry checks. A supplied `.bval` is checked for B0-only content.
+For odd DWI dimensions, TOPUP runs without spatial subsampling so a grid such
+as `120 x 120 x 69` can be retained without cropping or padding the DWI.
+
+To specify a reverse B0 stored elsewhere, submit one session explicitly:
+
+```bash
+sbatch --output=/path/to/logs/preproc-%j.out \
+  --error=/path/to/logs/preproc-%j.err \
+  scripts/2_preprocessing/preprocess_single_subject.sh \
+  /path/to/bids/sub-001/ses-1 reversepe /path/to/reverse_b0.nii.gz
+```
+
+HD-BET and denoising are shared. From substep 3 onward, working files and
+results are saved separately under:
+
+```text
+ses-1/dwi/preprocessing/synb0/
+ses-1/dwi/preprocessing/reversepe/
+```
+
+After a successful run, the selected method's final DWI, gradients, masks,
+tensor/FA, B0 references, and registration outputs overwrite the usual files
+in `dwi/`; the matching registered T1 overwrites the usual file in `anat/`.
+This includes `Diff_preproc.mif`, `Diff_preproc_unbiased.mif`, and
+`<sub>_desc-preproc_dwi.*`. Filenames used by later stages stay unchanged.
+The original converted `Diff.mif` remains the shared, uncorrected input.
+`<sub>_desc-preprocessing_info.txt` records the active method. Saved method
+outputs are independent copies and remain available for comparison.
+
+Rerunning a method reuses its TOPUP and eddy results, then recreates and
+activates the final outputs. Existing Stage 2 results from before this layout
+are not imported; the first run computes a separate saved variant. If you
+change the actual inputs for a method, use a fresh method folder. Do not
+switch methods while later stages are running. Existing FODs, tractograms,
+and connectomes are not regenerated or removed by preprocessing: preserve
+earlier downstream results and clear their output files before rerunning
+stages 3--6, because some stages otherwise skip existing outputs.
+
+## Comparing FA between correction methods
+
+Open [`validate_fa_distributions.ipynb`](validate_fa_distributions.ipynb) in
+Jupyter and set the original reverse-PE and artificial-B0 FA image paths.
+The example paths use the saved `preprocessing/reversepe/` and
+`preprocessing/synb0/` results for one subject/session. The notebook requires
+NumPy, NiBabel, Matplotlib, and SciPy.
+
+Supply a common binary brain or white-matter NIfTI mask for the final
+comparison. The notebook checks image grids, reports invalid values, and plots
+normalized histograms, cumulative distributions, and a spatial difference
+slice. It also reports distribution distances and paired FA errors. Matching
+distributions alone do not establish spatial agreement or equivalence.
+
 ## Inputs and outputs
 
 Each session must contain:
@@ -85,12 +157,14 @@ Each session must contain:
 The stage also uses:
 
 - `images/diffusion_image.sif`: the container used to run HD-BET.
-- `images/synb0-disco_v3.0.sif`: the container used for distortion estimation.
+- `images/synb0-disco_v3.0.sif`: distortion estimation for `synb0` only.
 - `templates_parcellations/MNI152_T1_2mm.nii.gz`: the MNI registration
   reference.
 
-Jobs run in each session's `dwi/` directory. In the table below, `<sub>` is the
-subject directory name, for example `sub-001`.
+Substeps 1--2 run in each session's `dwi/` directory; substeps 3--10 run in
+`dwi/preprocessing/<method>/`. Relative output names below refer to those
+working directories. Final outputs are also copied to their usual downstream
+locations. `<sub>` is the subject directory name, for example `sub-001`.
 
 **Substep:** 1. T1 brain extraction  
 **Processing:** HD-BET brain extraction. This tool uses Deep Learning to make an accurate anatomical T1. At order stages a mask is calculated directly on the diffusion to avoid resampling issues. 
@@ -121,11 +195,12 @@ subject directory name, for example `sub-001`.
 - `residual.mif`: the difference between the original and denoised DWI,
   used for QC.
 - `Diff_den_gibbs.mif`: the denoised DWI after Gibbs-ringing correction.
-- `Diff_den_gibbs.mif`: a link to `Diff_den_gibbs.mif` used by later
-  commands.
 
-**Substep:** 3. Synb0-DISCO preparation  
-**Processing:** Create acquisition parameters, mean b=0, b=0 mask, and Synb0 inputs. Synb0 is a tool used in the next steps that requres specific Input setup, which is what is done in this step
+**Substep:** 3. Distortion-correction preparation
+
+**Processing:** Create acquisition parameters, mean b=0, and b=0 mask. For
+`synb0`, also copy the anatomical input. For `reversepe`, average the acquired
+reverse-PE B0 series and merge it with the primary DWI's mean B0.
 
 **Inputs:**
 
@@ -138,16 +213,18 @@ subject directory name, for example `sub-001`.
 - `INPUTS/acqparams.txt`: phase-encoding and readout-time parameters for topup.
 - `INPUTS/b0.nii.gz`: the mean b=0 image supplied to Synb0-DISCO.
 - `INPUTS/T1.nii.gz`: the T1w image supplied to Synb0-DISCO.
-- `mean_b0_AP.mif`: the mean AP b=0 image in MRtrix format, created for an AP
-  acquisition.
-- `mean_b0_AP.nii.gz`: the same AP mean b=0 image in NIfTI format.
-- `mean_b0_PA.mif`: the mean PA b=0 image in MRtrix format, created for a PA
-  acquisition.
-- `mean_b0_PA.nii.gz`: the same PA mean b=0 image in NIfTI format.
+- `mean_b0.mif`: the primary DWI's mean B0 in MRtrix format.
+- `INPUTS/reverse_b0.nii.gz`: acquired reverse-PE mean B0 (`reversepe` only).
+- `INPUTS/reverse_b0_native.nii.gz`: reverse-PE mean B0 before regridding.
+- `INPUTS/b0_pair.nii.gz`: primary and reverse-PE mean B0s, in acquisition-row
+  order (`reversepe` only).
 - `<sub>_desc-preproc_b0_mask.nii.gz`: the b=0 brain mask used by eddy. This is done on the Diffusion itself instead of the T1
 
 **Substep:** 4. Distortion estimation  
-**Processing:** Run Synb0-DISCO/topup preparation. Here an artificial inverted B0 image will be created to calculate the TOPUP coefficients that will be used for eddy correction
+**Processing:** For `synb0`, run Synb0-DISCO, which synthesizes an undistorted
+B0 reference and runs TOPUP. For `reversepe`, run TOPUP directly on the two
+acquired mean B0s using `b02b0.cnf`. Both methods supply the resulting field
+estimate to eddy; the DWI is not separately corrected with `applytopup`.
 
 **Inputs:**
 
@@ -165,7 +242,7 @@ subject directory name, for example `sub-001`.
 
 **Inputs:**
 
-- `Diff_den_gibbs.mif` or `Diff.mif`.
+- Shared `dwi/Diff_den_gibbs.mif`, for both methods and both PE polarities.
 - `INPUTS/acqparams.txt`.
 - `<sub>_desc-preproc_b0_mask.nii.gz`.
 - `OUTPUTS/topup*`.
@@ -260,6 +337,7 @@ After preprocessing completes, preview removable Stage 2 working files with:
 bash scripts/cleanup_intermediates.sh --stage 2 --dry-run /path/to/bids
 ```
 
+The saved `dwi/preprocessing/` method folders are not touched by cleanup.
 The final preprocessed DWI and gradients, masks, DTI/FA products, mean b=0,
 anatomical derivatives, transforms, and registration images are retained. Add
 `--include-qc` only after inspecting `noise.mif` and `residual.mif`.

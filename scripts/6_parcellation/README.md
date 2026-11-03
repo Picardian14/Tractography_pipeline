@@ -46,6 +46,23 @@ bash scripts/6_parcellation/2_run_parcellate_msmt_jobs.sh /path/to/bids
 bash scripts/6_parcellation/2_run_parcellate_ss3t_jobs.sh /path/to/bids
 ```
 
+To run SS3T parcellation locally for every session in `doc_data`, without
+submitting Slurm jobs:
+
+```bash
+bash scripts/6_parcellation/2_run_parcellate_ss3t_local.sh doc_data
+```
+
+The local launcher processes sessions sequentially with 4 threads each. Set
+`NTHREADS` to change this, and `OUTPUT_DIR` to choose the log directory. By
+default, a new run directory is created under `outputs/`, containing one log
+per session and `status.tsv` with exit statuses and timestamps. It continues
+after a failed session and exits with a nonzero status if any session failed.
+Completed connectomes are skipped by the job's existing output checks.
+FreeSurfer, FSL, and MRtrix must be available through the job's `ml` commands,
+and each session needs a completed FreeSurfer reconstruction. The launcher
+sets `NO_FSFAST=1` to skip the unused FSFAST MATLAB startup configuration.
+
 **Substep:** 2.1. Surface atlas mapping  
 **Processing:** Map each `fsaverage` hemisphere annotation to the subject
 

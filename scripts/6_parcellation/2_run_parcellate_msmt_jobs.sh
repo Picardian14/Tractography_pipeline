@@ -23,6 +23,6 @@ for session_dir in "$BIDS_ROOT"/sub-*/ses-*; do
         --output="$output/${analysis_id}-parcellate-msmt-%j.out.txt" \
         --error="$output/${analysis_id}-parcellate-msmt-%j.err.txt" \
         --chdir="$session_dir/dwi" \
-        --mem=32G --time=24:00:00 \
+        --mem=32G --time=2:00:00 \
         "$parcellate_job" "$session_dir"
 done

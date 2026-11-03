@@ -17,7 +17,9 @@ This mirrors the existing DOC MRI dataset convention and keeps FLAIR, SWI, T2,
 scanner-generated imaging derivatives from being discarded. Inverted B0 uses
 ``sub-123_acq-inverted_b0.*``; repeated acquisitions receive ``run-`` entities.
 Localizers, scouts, and secondary screenshots are omitted, as in the reference
-dataset. After a subject is organized successfully, its temporary helper and
+dataset. Original DWI may carry a SECONDARY flag; scanner-normalized magnitude
+T1w reconstructions are accepted when no original T1w is available. After a
+subject is organized successfully, its temporary helper and
 log directories are removed. Nothing is changed unless ``--apply`` is supplied.
 """
 
@@ -128,10 +130,8 @@ def classify_series(series: list[dict]) -> dict[str, list[dict]]:
         "b0": [],
         "T1w": [],
     }
+    reconstructed_t1w = []
     for item in series:
-        if not is_original(item):
-            continue
-
         text = item["text"]
         image_type = item["image_type"]
         bvals = item["bvals"]
@@ -139,18 +139,35 @@ def classify_series(series: list[dict]) -> dict[str, list[dict]]:
             text, r"(?:^|[^a-z0-9])(?:diff(?:usion)?|dti)(?:[^a-z0-9]|$)"
         )
         is_b0 = contains(text, r"(?:^|[^a-z0-9])b[ _=-]?0(?:[^a-z0-9]|$)")
+        # Some scanner exports label the actual diffusion acquisition ORIGINAL
+        # and SECONDARY. Its diffusion metadata and nonzero b-values distinguish
+        # it from screenshots; derived ADC/FA maps remain excluded.
+        diffusion_acquisition = "DERIVED" not in image_type and (
+            "ORIGINAL" in image_type or "SECONDARY" not in image_type
+        )
 
         # Keep b=0 references separate from the primary diffusion series:
         # they support distortion correction but contain no diffusion weighting.
-        if is_diffusion and bvals and any(abs(value) > 50 for value in bvals):
+        if diffusion_acquisition and is_diffusion and bvals and any(abs(value) > 50 for value in bvals):
             acquisitions["dwi"].append(item)
-        elif (is_diffusion or is_b0) and (
+        elif diffusion_acquisition and (is_diffusion or is_b0) and (
             (bvals and all(abs(value) <= 50 for value in bvals))
             or (is_b0 and not bvals)
         ):
             acquisitions["b0"].append(item)
-        elif contains(text, r"(?:\bt1\b|mprage)"):
-            acquisitions["T1w"].append(item)
+        elif contains(text, r"(?:^|[^a-z0-9])t1(?:w|[^a-z0-9]|$)|mprage"):
+            if is_original(item):
+                acquisitions["T1w"].append(item)
+            elif (
+                "SECONDARY" not in image_type
+                and {"DERIVED", "PRIMARY", "NORM", "ND"}.issubset(image_type)
+                and image_type.intersection({"M", "MAGNITUDE"})
+            ):
+                # LE468/FT410 retain this scanner reconstruction rather than an
+                # ORIGINAL T1w. Prefer ORIGINAL when both versions are present.
+                reconstructed_t1w.append(item)
+    if not acquisitions["T1w"]:
+        acquisitions["T1w"] = reconstructed_t1w
     return acquisitions
 
 
@@ -301,7 +318,7 @@ def plan_subject(
     if t1w:
         append_moves(moves, t1w, session_dir, "anat", f"{subject_id}_T1w")
     elif not required_available("T1w", NIFTI_EXTENSIONS):
-        raise ValueError("no original T1w acquisition found")
+        raise ValueError("no original T1w or scanner-normalized magnitude T1w reconstruction found")
 
     # Preserve all companion files before deleting helper/, using one basename
     # per acquisition so NIfTI, metadata, and gradients remain paired.

@@ -2,7 +2,7 @@
 #SBATCH --partition=compute
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=16G
-#SBATCH --time=12:00:00
+#SBATCH --time=2:00:00
 #SBATCH --mail-user=ivan.mindlin@icm-institute.org
 #SBATCH --mail-type=ALL
 

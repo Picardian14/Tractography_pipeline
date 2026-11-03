@@ -22,6 +22,6 @@ for session_dir in "$BIDS_ROOT"/sub-*/ses-*; do
         --output="$output/${analysis_id}-recon_all-%j.out.txt" \
         --error="$output/${analysis_id}-recon_all-%j.err.txt" \
         --chdir="$session_dir/anat" \
-        --mem=64G --time=24:00:00 \
+        --mem=64G --time=8:00:00 \
         "$recon_all_job" "$session_dir"
 done

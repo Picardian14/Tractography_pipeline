@@ -85,7 +85,7 @@ From one session's `dwi/` directory, inspect the smaller tractogram as in
 ```bash
 subject=sub-001
 model=ss3t # use msmt for the higher-quality multi-shell route
-mrview ../anat/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz \
+mrview ../anat/${subject}_T1_in_dwi_space.nii.gz \
   -mode 2 -size 2048,1024 -autoscale \
   -tractography.load "${subject}_model-${model}_tractogram-200k.tck"
 ```

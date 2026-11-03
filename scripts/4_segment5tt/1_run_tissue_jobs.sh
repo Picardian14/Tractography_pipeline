@@ -21,6 +21,6 @@ for session_dir in "$BIDS_ROOT"/sub-*/ses-*; do
         --output="$output/${analysis_id}-5tt-%j.out.txt" \
         --error="$output/${analysis_id}-5tt-%j.err.txt" \
         --chdir="$session_dir/dwi" \
-        --mem=16G --time=48:00:00 \
+        --mem=16G --time=2:00:00 \
         "$tissue_job" "$session_dir"
 done

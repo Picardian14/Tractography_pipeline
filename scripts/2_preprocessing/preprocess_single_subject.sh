@@ -9,9 +9,26 @@
 #SBATCH --mail-type=FAIL,END
 
 # Single subject preprocessing
-# Usage: sbatch preprocess_single_subject.sh /absolute/path/to/bids/sub-ID/ses-ID
+# Usage: sbatch preprocess_single_subject.sh SESSION_DIR [synb0|reversepe] [REVERSE_B0]
+
+set -eo pipefail
 
 PREPROCESSING_START_TIME=$(date +%s)
+
+if [ "$#" -lt 1 ] || [ "$#" -gt 3 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 SESSION_DIR [synb0|reversepe] [REVERSE_B0.nii.gz]" >&2
+    exit 2
+fi
+SDC_METHOD="${2:-synb0}"
+REVERSE_B0="${3:-}"
+case "$SDC_METHOD" in
+    synb0|reversepe) ;;
+    *) echo "Unknown preprocessing method: $SDC_METHOD (use synb0 or reversepe)" >&2; exit 2 ;;
+esac
+if [ "$SDC_METHOD" = synb0 ] && [ -n "$REVERSE_B0" ]; then
+    echo "REVERSE_B0 is only used with reversepe." >&2
+    exit 2
+fi
 
 module load MRtrix
 module load FSL
@@ -19,18 +36,13 @@ module load ANTs
 module load FreeSurfer/6.0.0
 module load singularity
 
-if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
-    echo "Usage: $0 /absolute/path/to/bids/sub-ID/ses-ID" >&2
-    exit 2
-fi
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 MNI_TEMPLATE="${MNI_TEMPLATE:-${PIPELINE_ROOT}/templates_parcellations/MNI152_T1_2mm.nii.gz}"
 SYNB0_SIF="${SYNB0_SIF:-${PIPELINE_ROOT}/images/synb0-disco_v3.0.sif}"
 
 # Get parameters
-SESSION_DIR=$1           # Full path to a BIDS sub-*/ses-* directory
+SESSION_DIR=$(readlink -f "$1")
 SUBJECT_DIR=$(dirname "$SESSION_DIR")
 SUBJECT_NAME=$(basename "$SUBJECT_DIR")
 SESSION_NAME=$(basename "$SESSION_DIR")
@@ -39,29 +51,70 @@ SESSION_NAME=$(basename "$SESSION_DIR")
 echo "=========================================="
 echo "Processing session: ${SUBJECT_NAME}_${SESSION_NAME}"
 echo "Working directory: $SESSION_DIR"
+echo "Distortion correction: $SDC_METHOD"
 echo "=========================================="
 
 ANAT_DIR="$SESSION_DIR/anat"
 DWI_DIR="$SESSION_DIR/dwi"
+METHOD_DIR="$DWI_DIR/preprocessing/$SDC_METHOD"
+if [ "$SDC_METHOD" = reversepe ]; then
+    if [ -z "$REVERSE_B0" ]; then
+        shopt -s nullglob
+        reverse_candidates=("$DWI_DIR"/*_acq-inverted*_b0.nii.gz "$SESSION_DIR"/fmap/*_epi.nii.gz)
+        shopt -u nullglob
+        if [ "${#reverse_candidates[@]}" -ne 1 ]; then
+            echo "Expected one dwi/*_acq-inverted*_b0.nii.gz or fmap/*_epi.nii.gz; specify REVERSE_B0 explicitly." >&2
+            exit 1
+        fi
+        REVERSE_B0="${reverse_candidates[0]}"
+    fi
+    REVERSE_B0=$(readlink -f "$REVERSE_B0")
+    if [[ "$REVERSE_B0" != *.nii.gz ]]; then
+        echo "REVERSE_B0 must be a .nii.gz image." >&2
+        exit 2
+    fi
+    REVERSE_JSON="${REVERSE_B0%.nii.gz}.json"
+    for required_file in "$REVERSE_B0" "$REVERSE_JSON"; do
+        if [ ! -f "$required_file" ]; then
+            echo "Missing reverse-PE B0 input: $required_file" >&2
+            exit 1
+        fi
+    done
+fi
 T1_FILE=$(find "$ANAT_DIR" -maxdepth 1 -type f \
     -name "${SUBJECT_NAME}*_T1w.nii.gz" \
     ! -name "${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz" \
     ! -name "${SUBJECT_NAME}_desc-hdbet_T1w_mask.nii.gz" \
     -print -quit 2>/dev/null)
-DWI_FILE=$(find "$DWI_DIR" -maxdepth 1 -type f \
+mapfile -t dwi_candidates < <(find "$DWI_DIR" -maxdepth 1 -type f \
     -name "${SUBJECT_NAME}*_dwi.nii.gz" \
     ! -name "${SUBJECT_NAME}*_desc-preproc_dwi.nii.gz" \
-    -print -quit 2>/dev/null)
+    ! -path "$REVERSE_B0" -print 2>/dev/null)
+if [ "${#dwi_candidates[@]}" -ne 1 ]; then
+    echo "Expected exactly one primary DWI series in $DWI_DIR (excluding REVERSE_B0)." >&2
+    exit 1
+fi
+DWI_FILE="${dwi_candidates[0]}"
 DWI_STEM="${DWI_FILE%.nii.gz}"
 DWI_JSON="${DWI_STEM}.json"
 BVAL_FILE="${DWI_STEM}.bval"
 BVEC_FILE="${DWI_STEM}.bvec"
-for required_file in "$T1_FILE" "$DWI_FILE" "$DWI_JSON" "$BVAL_FILE" "$BVEC_FILE" "$SYNB0_SIF"; do
+for required_file in "$T1_FILE" "$DWI_FILE" "$DWI_JSON" "$BVAL_FILE" "$BVEC_FILE"; do
     if [ -z "$required_file" ] || [ ! -f "$required_file" ]; then
         echo "Missing required BIDS input: $required_file" >&2
         exit 1
     fi
 done
+if [ "$SDC_METHOD" = synb0 ] && [ ! -f "$SYNB0_SIF" ]; then
+    echo "Missing Synb0 container: $SYNB0_SIF" >&2
+    exit 1
+fi
+
+# Both methods share denoising and publish to the same active filenames.
+exec 9>"$DWI_DIR/.preprocessing.lock"
+flock -n 9 || { echo "Preprocessing is already running for $SESSION_DIR" >&2; exit 1; }
+mkdir -p "$METHOD_DIR"
+cd "$DWI_DIR"
 
 
 PREPROC_DWI_MIF="${SUBJECT_NAME}_desc-preproc_dwi.mif"
@@ -72,17 +125,19 @@ DWI_B0_MASK_NII="${SUBJECT_NAME}_desc-preproc_b0_mask.nii.gz"
 T1_BRAIN_NII="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w.nii.gz"
 T1_MASK_NII="${ANAT_DIR}/${SUBJECT_NAME}_desc-hdbet_T1w_bet.nii.gz"
 T1_MASK_DWI_MIF="${SUBJECT_NAME}_desc-resampled_bet.mif"
-T1_IN_DWI_NII="${ANAT_DIR}/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz"
+T1_IN_DWI_NII="${METHOD_DIR}/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz"
 
 echo "Current working directory: $(pwd)"
 
 # Store input info in a log file for reference
-cat > "${SUBJECT_NAME}_desc-preprocessing_info.txt" << EOF
+cat > "${METHOD_DIR}/${SUBJECT_NAME}_desc-preprocessing_info.txt" << EOF
 SUBJECT_NAME: $SUBJECT_NAME
 SESSION_NAME: $SESSION_NAME
 SUBJECT_DIR: $SUBJECT_DIR
 SESSION_DIR: $SESSION_DIR
 DWI_JSON: $DWI_JSON
+SDC_METHOD: $SDC_METHOD
+REVERSE_B0: $REVERSE_B0
 PROCESSING_DATE: $(date)
 EOF
 
@@ -120,82 +175,112 @@ fi
 ##############################################
 echo ""
 echo "Step 2: Converting to MRtrix format and denoising..."
-#
 if [ ! -f "Diff.mif" ]; then
     echo "  - Converting DWI to MRtrix format..."
     mrconvert "$DWI_FILE" Diff.mif -fslgrad "$BVEC_FILE" "$BVAL_FILE" -force
-    #
-    ## Denoise with extent 7 (similar to Siemens pipeline)
+fi
+# Denoise with extent 7 (similar to Siemens pipeline).
+if [ ! -f "Diff_den.mif" ]; then
     dwidenoise Diff.mif Diff_den.mif -extent 7 -noise noise.mif -force
-    #
-    ## Calculate residuals for QC
+    # Residuals help identify removal of anatomical signal.
     mrcalc Diff.mif Diff_den.mif -subtract residual.mif -force
-    #
-    ## Remove Gibbs ringing
+fi
+if [ ! -f "Diff_den_gibbs.mif" ]; then
     mrdegibbs Diff_den.mif Diff_den_gibbs.mif -force
-    #
-
-    #
-else
-    echo "  - Diff.mif already exists, skipping conversion and denoising."
 fi
-###############################################
-## STEP 3: Prepare synb0-disco inputs
-###############################################
-#echo ""
-echo "Step 3: Preparing synb0-disco inputs..."
-#
-mkdir -p INPUTS OUTPUTS
-#
-## Create acquisition parameters file
-PHASE_ENCODING_DIRECTION=$(
-    python3 "${PIPELINE_ROOT}/scripts/2_preprocessing/create_acqparams.py" \
-        "$DWI_JSON" INPUTS/acqparams.txt
-) || exit 1
-
-DEFAULT_FRACTION_BET=0.4
-if [ ! -f "mean_b0_AP.nii.gz" ] && [ ! -f "mean_b0_PA.nii.gz" ]; then
-    echo "  - Extracting mean b0 image for synb0-disco..."
-    if [ "$PHASE_ENCODING_DIRECTION" = "j-" ]; then
-        # Extract mean b0 from AP
-        dwiextract Diff_den_gibbs.mif - -bzero -force | mrmath - mean mean_b0_AP.mif -axis 3 -force
-        mrconvert mean_b0_AP.mif mean_b0_AP.nii.gz -force
-        cp mean_b0_AP.nii.gz INPUTS/b0.nii.gz
-        # Extract here the BET mask from the b0 diffusion image to use later for eddy
-        bet mean_b0_AP.nii.gz $DWI_B0_MASK_NII -n -m -f $DEFAULT_FRACTION_BET 
-        mv "${DWI_B0_MASK_NII%.nii.gz}_mask.nii.gz" "$DWI_B0_MASK_NII"
-    elif [ "$PHASE_ENCODING_DIRECTION" = "j" ]; then
-        # Extract mean b0 from PA
-        dwiextract Diff_den_gibbs.mif - -bzero -force | mrmath - mean mean_b0_PA.mif -axis 3 -force
-        mrconvert mean_b0_PA.mif mean_b0_PA.nii.gz -force
-        cp mean_b0_PA.nii.gz INPUTS/b0.nii.gz
-        bet mean_b0_PA.nii.gz $DWI_B0_MASK_NII -n -m -f $DEFAULT_FRACTION_BET
-        mv "${DWI_B0_MASK_NII%.nii.gz}_mask.nii.gz" "$DWI_B0_MASK_NII"
-    fi
-else
-    echo "  - Mean b0 image already exists, skipping extraction."
-fi
-
-#
-#
-cp "$T1_FILE" INPUTS/T1.nii.gz
-
-
 ##############################################
-# STEP 4: Run synb0-disco
+# STEP 3: Prepare the selected distortion-correction inputs
 ##############################################
 echo ""
-echo "Step 4: Running synb0-disco for distortion correction..."
+echo "Step 3: Preparing $SDC_METHOD inputs..."
 
-if [ ! -f "OUTPUTS/topup_fieldcoef.nii.gz" ]; then
-    
-    singularity run -e -B INPUTS/:/INPUTS -B OUTPUTS/:/OUTPUTS -B $FREESURFER_HOME/license.txt:/extra/freesurfer/license.txt "$SYNB0_SIF"
-    if [ $? -ne 0 ]; then
-        echo "ERROR: synb0-disco failed for ${SUBJECT_NAME}_${SESSION_NAME}"
-        exit 1
+# Everything depending on distortion correction stays in this method's folder.
+cd "$METHOD_DIR"
+mkdir -p INPUTS OUTPUTS
+acqparams_args=("$DWI_JSON" INPUTS/acqparams.txt)
+if [ "$SDC_METHOD" = reversepe ]; then
+    acqparams_args+=("$REVERSE_JSON")
+fi
+PHASE_ENCODING_DIRECTION=$(
+    python3 "${PIPELINE_ROOT}/scripts/2_preprocessing/create_acqparams.py" "${acqparams_args[@]}"
+)
+
+dwiextract "$DWI_DIR/Diff_den_gibbs.mif" - -bzero -force | \
+    mrmath - mean mean_b0.mif -axis 3 -force
+mrconvert mean_b0.mif INPUTS/b0.nii.gz -force
+
+DEFAULT_FRACTION_BET=0.4
+bet INPUTS/b0.nii.gz "$DWI_B0_MASK_NII" -n -m -f "$DEFAULT_FRACTION_BET"
+mv "${DWI_B0_MASK_NII%.nii.gz}_mask.nii.gz" "$DWI_B0_MASK_NII"
+
+if [ "$SDC_METHOD" = synb0 ]; then
+    cp "$T1_FILE" INPUTS/T1.nii.gz
+else
+    # Check B0-only content before averaging. Compare against the exported
+    # primary B0, which is the actual spatial reference supplied to TOPUP.
+    REGRID_REVERSE=$(
+    python3 - INPUTS/b0.nii.gz "$REVERSE_B0" <<'PY_REVERSE'
+import sys
+from pathlib import Path
+import nibabel as nib
+import numpy as np
+
+dwi = nib.load(sys.argv[1])
+reverse_b0 = nib.load(sys.argv[2])
+if len(reverse_b0.shape) not in (3, 4):
+    sys.exit("Reverse B0 must be a 3D image or a 4D B0-only series.")
+bval_file = Path(sys.argv[2][:-7] + ".bval")
+if bval_file.exists():
+    bvals = np.atleast_1d(np.loadtxt(bval_file)).ravel()
+    nvolumes = reverse_b0.shape[3] if len(reverse_b0.shape) == 4 else 1
+    if bvals.size != nvolumes or not np.all(np.isfinite(bvals)) or np.any(np.abs(bvals) > 50):
+        sys.exit("REVERSE_B0 must contain only B0 volumes (|b| <= 50 s/mm²), with one b-value per volume.")
+same_grid = dwi.shape[:3] == reverse_b0.shape[:3] and np.allclose(dwi.affine, reverse_b0.affine, rtol=0, atol=1e-4)
+print("no" if same_grid else "yes")
+PY_REVERSE
+    )
+    # One mean per direction gives exactly two images and two acqparams rows.
+    fslmaths "$REVERSE_B0" -Tmean INPUTS/reverse_b0_native.nii.gz
+    if [ "$REGRID_REVERSE" = yes ]; then
+        echo "  - Regridding reverse B0 onto the primary DWI grid (scanner coordinates)."
+        # Resample using the existing image geometry; TOPUP estimates movement
+        # and distortion. Sinc interpolation follows MRtrix's SE-EPI regridding.
+        mrtransform INPUTS/reverse_b0_native.nii.gz - \
+            -template INPUTS/b0.nii.gz -interp sinc -force | \
+            mrcalc - 0 -max INPUTS/reverse_b0.nii.gz -datatype float32 -force
+    else
+        cp INPUTS/reverse_b0_native.nii.gz INPUTS/reverse_b0.nii.gz
+    fi
+    echo "REGRID_REVERSE: $REGRID_REVERSE" >> "${SUBJECT_NAME}_desc-preprocessing_info.txt"
+    fslmerge -t INPUTS/b0_pair.nii.gz INPUTS/b0.nii.gz INPUTS/reverse_b0.nii.gz
+fi
+
+##############################################
+# STEP 4: Estimate the distortion field
+##############################################
+echo ""
+echo "Step 4: Estimating the distortion field with $SDC_METHOD..."
+
+if [ ! -f "OUTPUTS/topup_fieldcoef.nii.gz" ] || [ ! -f "OUTPUTS/topup_movpar.txt" ]; then
+    if [ "$SDC_METHOD" = synb0 ]; then
+        singularity run -e -B INPUTS/:/INPUTS -B OUTPUTS/:/OUTPUTS \
+            -B "$FREESURFER_HOME/license.txt:/extra/freesurfer/license.txt" "$SYNB0_SIF"
+    else
+        # Full-resolution estimation also supports odd grids such as 120x120x69;
+        # the default factor-two subsampling cannot be used on those grids.
+        read -r nx ny nz <<< "$(mrinfo INPUTS/b0.nii.gz -size)"
+        topup_grid_options=()
+        if (( nx % 2 || ny % 2 || nz % 2 )); then
+            topup_grid_options+=(--subsamp=1,1,1,1,1,1,1,1,1)
+        fi
+        topup --imain=INPUTS/b0_pair.nii.gz \
+            --datain=INPUTS/acqparams.txt \
+            --config=b02b0.cnf \
+            --out=OUTPUTS/topup \
+            --iout=OUTPUTS/b0_unwarped "${topup_grid_options[@]}"
     fi
 else
-    echo "synb0-disco already completed (outputs exist)"
+    echo "  - $SDC_METHOD TOPUP outputs already exist, skipping field estimation."
 fi
 
 ##############################################
@@ -204,14 +289,8 @@ fi
 echo ""
 echo "Step 5: Preparing for eddy correction..."
 
-# Create eddy indices
-if [ "$PHASE_ENCODING_DIRECTION" = "j-" ]; then
-    input_dwi="Diff_den_gibbs.mif"
-    printf "Using denoised data for AP phase encoding\n"
-else
-    input_dwi="Diff.mif"
-    printf "Using raw data for PA phase encoding\n"
-fi
+# Use identical DWI preparation for both methods and either PE polarity.
+input_dwi="$DWI_DIR/Diff_den_gibbs.mif"
 output=$(mrinfo "$input_dwi" -size)
 nvolumes=$(echo "$output" | awk '{print $4}')
 ones=$(printf '1 %.0s' $(seq 1 $nvolumes))
@@ -227,7 +306,7 @@ echo ""
 echo "Step 6: Running eddy correction..."
 
 # run eddy if files do not exist
-if [ ! -f "$PREPROC_DWI_NII" ]; then
+if [ ! -f "eddy_unwarped_images.nii.gz" ] || [ ! -f "eddy_unwarped_images.eddy_rotated_bvecs" ]; then
     echo "  - Running eddy..."
     eddy --imain=Diff_eddy_in.nii.gz \
 	     --mask="$DWI_B0_MASK_NII" \
@@ -246,11 +325,10 @@ else
     echo "  - Eddy outputs already exist, skipping eddy step."
 fi
 
-totalSlices=`mrinfo Diff.mif | grep Dimensions | awk '{print $6 * $8}'`
-totalOutliers=`awk '{ for(i=1;i<=NF;i++)sum+=$i } END { print sum }' eddy_unwarped_images.eddy_outlier_map`
-echo "If the following number is greater than 10, you may have to discard this subject because of too much motion or corrupted slices"
-echo "!!!! Number of outliers from eddy !!!!:"
-echo "scale=5; ($totalOutliers / $totalSlices * 100)/1" | bc | tee percentageOutliers.txt
+totalSlices=$(echo "$output" | awk '{print $3 * $4}')
+echo "Percentage of outlier slices (inspect high values during QC):"
+awk -v total="$totalSlices" 'NR > 1 {for(i=1;i<=NF;i++) sum+=$i} END {printf "%.5f\n", 100 * sum / total}' \
+    eddy_unwarped_images.eddy_outlier_map | tee percentageOutliers.txt
 
 
 # Convert back to MRtrix format
@@ -427,6 +505,34 @@ echo "Quality check files created:"
 echo "  - mean_b0_in_MNI.nii.gz (check b0-MNI alignment)"
 echo "  - FA_in_MNI_direct.nii (OPTION A: direct b0->MNI)"
 echo "  - FA_in_MNI_via_T1.nii (OPTION B: via T1 using ANTs)"
+
+# Preserve each method's results, but keep the established downstream names.
+# Copy instead of linking so later commands cannot modify the saved variant.
+active_outputs=(
+    "$PREPROC_DWI_MIF" "$PREPROC_DWI_NII" "$PREPROC_BVAL" "$PREPROC_BVEC"
+    Diff_preproc.mif Diff_preproc_unbiased.mif
+    "$DWI_B0_MASK_NII" "$T1_MASK_DWI_MIF"
+    mean_b0_final.mif mean_b0_final.nii.gz rigid_T1toDWI.mat rigid_T1toDWI.txt
+    "${SUBJECT_NAME}_model-dti_tensor.mif"
+    "${SUBJECT_NAME}_model-dti_FA.mif" "${SUBJECT_NAME}_model-dti_FA.nii.gz"
+    mean_b0_in_MNI.nii.gz b02standard.mat
+    T1_to_MNI_0GenericAffine.mat T1_to_MNI_Warped.nii.gz
+    b0_to_T1_0GenericAffine.mat FA_in_MNI_direct.nii FA_in_MNI_via_T1.nii
+    percentageOutliers.txt "${SUBJECT_NAME}_desc-preprocessing_info.txt"
+)
+# Check the complete set before replacing any active result.
+for output in "${active_outputs[@]}" "$T1_IN_DWI_NII"; do
+    if [ ! -f "$output" ]; then
+        echo "Missing preprocessing output: $output; active results were not updated." >&2
+        exit 1
+    fi
+done
+for output in "${active_outputs[@]}"; do
+    cp --remove-destination "$output" "$DWI_DIR/$output"
+done
+cp --remove-destination "$T1_IN_DWI_NII" "$ANAT_DIR/${SUBJECT_NAME}_T1_in_dwi_space.nii.gz"
+echo "Active preprocessing: $SDC_METHOD (saved in $METHOD_DIR)"
+echo "Rerun downstream analyses for this selection; existing FODs/tractograms/connectomes are not updated here."
 
 PREPROCESSING_END_TIME=$(date +%s)
 PREPROCESSING_DURATION=$((PREPROCESSING_END_TIME - PREPROCESSING_START_TIME))

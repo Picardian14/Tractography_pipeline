@@ -21,6 +21,6 @@ for session_dir in "$BIDS_ROOT"/sub-*/ses-*; do
         --output="$output/${analysis_id}-tck-msmt-%j.out.txt" \
         --error="$output/${analysis_id}-tck-msmt-%j.err.txt" \
         --chdir="$session_dir/dwi" \
-        --mem=16G --time=12:00:00 \
+        --mem=16G --time=2:00:00 \
         "$tckgen_job" "$session_dir"
 done
