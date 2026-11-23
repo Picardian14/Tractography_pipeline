@@ -34,14 +34,18 @@ From: ubuntu:22.04
         bc \
         ca-certificates \
         curl \
+        dbus-bin \
         g++-11 \
         gcc-11 \
         git \
         libeigen3-dev \
         libfftw3-dev \
-        libglu1-mesa \
+        libgl1-mesa-dev \
+        libglu1-mesa-dev \
         libgomp1 \
         libpng-dev \
+        libqt5opengl5-dev \
+        libqt5svg5-dev \
         libtiff-dev \
         libx11-6 \
         libxi6 \
@@ -51,6 +55,10 @@ From: ubuntu:22.04
         perl \
         python3 \
         python-is-python3 \
+        qt5-qmake \
+        qtbase5-dev \
+        qtbase5-dev-tools \
+        qtchooser \
         tcsh \
         unzip \
         wget \
@@ -58,6 +66,13 @@ From: ubuntu:22.04
         zlib1g-dev \
         less 
     rm -rf /var/lib/apt/lists/*
+
+    # Ubuntu's base image leaves /etc/machine-id empty. Qt's D-Bus support
+    # aborts when mrview is launched with a session bus and the ID is invalid.
+    dbus-uuidgen > /etc/machine-id
+    mkdir -p /var/lib/dbus
+    ln -sf /etc/machine-id /var/lib/dbus/machine-id
+    test "$(wc -c < /etc/machine-id)" -eq 33
 
     # Make GCC/G++ 11 the default for every later build system, including
     # projects which invoke the generic cc/c++ names.
@@ -141,16 +156,29 @@ From: ubuntu:22.04
 
     # Follow the documented server/HPC installation sequence with Ubuntu
     # 22.04's system GCC/G++ 11 and the same Eigen 3.3.9 headers as the
-    # known-working local configuration. No Conda compiler is involved.
+    # known-working local configuration. Use Ubuntu's Qt explicitly so mrview
+    # is linked against libraries that remain available in the final image.
+    # No Conda compiler or Qt installation is involved in this build.
     /usr/bin/gcc-11 --version
     /usr/bin/g++-11 --version
     EIGEN_CFLAGS="-isystem /opt/eigen-3.3.9" \
         CC=/usr/bin/gcc-11 \
         CXX=/usr/bin/g++-11 \
+        QMAKE=/usr/lib/qt5/bin/qmake \
+        MOC=/usr/lib/qt5/bin/moc \
+        RCC=/usr/lib/qt5/bin/rcc \
         ./configure
     grep -F "eigen_cflags = [ '-isystem', '/opt/eigen-3.3.9'" config
     ./build
     /opt/MRtrix3Tissue/bin/mrinfo -version
+    test -x /opt/MRtrix3Tissue/bin/mrview
+    if ldd /opt/MRtrix3Tissue/bin/mrview | grep -q 'not found'; then
+        ldd /opt/MRtrix3Tissue/bin/mrview
+        exit 1
+    fi
+    # The build has no X server. The offscreen backend lets Qt initialise while
+    # still checking that mrview and its Qt libraries load correctly.
+    QT_QPA_PLATFORM=offscreen /opt/MRtrix3Tissue/bin/mrview -version
 
     # Install HD-BET from the inspected Git revision, not an unpinned PyPI
     # release. Put its weights in the immutable image instead of $HOME.
@@ -201,16 +229,25 @@ From: ubuntu:22.04
     command -v dcm2niix
     command -v recon-all
     command -v mri_surf2surf
-    command -v eddy
-    command -v antsApplyTransforms
-    command -v recon-all
-    command -v mrconvert
+    command -v mrview
     test -f /opt/hd-bet_params/release_2.0.0/fold_all/checkpoint_final.pth
+    if ldd "$(command -v mrview)" | grep -q 'not found'; then
+        ldd "$(command -v mrview)"
+        exit 1
+    fi
+    # Isolate the GUI smoke test from the host's XDG directory while retaining
+    # the host D-Bus environment that mrview will encounter during normal use.
+    mrview_runtime_dir="$(mktemp -d /tmp/mrview-test.XXXXXX)"
+    chmod 700 "$mrview_runtime_dir"
+    XDG_RUNTIME_DIR="$mrview_runtime_dir" \
+        QT_QPA_PLATFORM=offscreen \
+        mrview -version >/dev/null
+    rm -rf "$mrview_runtime_dir"
     hd-bet -h >/dev/null
     ss3t_csd_beta1 -help >/dev/null
     /opt/diffusion/bin/python -c "import torch, scipy.spatial, skimage, SimpleITK, HD_BET"
     test "$(/opt/diffusion/bin/python -c 'import scipy; print(scipy.__version__)')" = "1.14.1"
-    
+
 
 %help
     This image contains the command-line dependencies used by the

@@ -1,0 +1,20 @@
+# IDs/names: yetianmed/subcortex, commit 660ba570fef99e69507fc8c9beac24fbd8aa54d0
+# Group-Parcellation/3T/Subcortex-Only/Tian_Subcortex_S1_3T_label.txt
+# Colours below are display choices; label IDs follow the original atlas order.
+# index name R G B A
+1  HIP-rh   220 216 20  0
+2  AMY-rh   103 255 255 0
+3  pTHA-rh  0   118 14  0
+4  aTHA-rh  0   158 54  0
+5  NAc-rh   255 165 0   0
+6  GP-rh    12  48  255 0
+7  PUT-rh   236 13  176 0
+8  CAU-rh   122 186 220 0
+9  HIP-lh   220 216 20  0
+10 AMY-lh   103 255 255 0
+11 pTHA-lh  0   118 14  0
+12 aTHA-lh  0   158 54  0
+13 NAc-lh   255 165 0   0
+14 GP-lh    12  48  255 0
+15 PUT-lh   236 13  176 0
+16 CAU-lh   122 186 220 0

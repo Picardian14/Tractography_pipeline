@@ -125,6 +125,23 @@ sets `NO_FSFAST=1` to skip the unused FSFAST MATLAB startup configuration.
 The script uses the SIFT2 weights directly. It does not apply inverse-node-
 volume scaling or per-subject maximum normalization.
 
+## Surface cortex with volumetric subcortex
+
+Use `parcellate_schaefer_tian_job.sh` for a separate Schaefer + Tian variant:
+
+```bash
+MODEL=ss3t bash scripts/6_parcellation/parcellate_schaefer_tian_job.sh \
+  /absolute/path/to/bids/sub-001/ses-1
+```
+
+Set `MODEL=msmt` for the MSMT tractogram/weights. The default combines the
+surface-derived Schaefer 100 cortex with 16 Tian S1 subcortical regions, using
+nonlinear anatomical registration and nearest-neighbour label resampling.
+The original jobs and their cortical-only results are separate. See
+[SCHAEFER_TIAN.md](SCHAEFER_TIAN.md) for Slurm submission, settings, outputs,
+and **separate QC commands**. The new job performs processing without embedded
+validation or QC checks.
+
 ## Cleaning intermediates
 
 After connectome construction completes, preview redundant atlas conversion

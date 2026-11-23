@@ -1,0 +1,45 @@
+TASK: Integrate a surface-based Schaefer cortical parcellation with a volumetric subcortical atlas for MRtrix structural connectome construction.
+
+CURRENT PIPELINE / CONTEXT
+- Data: clinical diffusion MRI from disorders-of-consciousness patients; variable image quality, distorted anatomy, possible lesions and atrophy.
+- T1: FreeSurfer recon-all generates subject-specific cortical surfaces and anatomical segmentation.
+- Cortex: Schaefer (e.g., 100 or 200 parcels, 7 networks) is transferred from fsaverage to each subject's cortical surfaces (lh/rh .annot files).
+- DWI: preprocessing and T1-to-DWI registration already exist; ACT tractography using 5TT, GM-WM interface seeding, and SIFT2 weights.
+- Goal: retain surface-derived cortical boundaries, add subcortical ROIs, and construct a single cortical + subcortical connectivity matrix.
+
+CORE PRINCIPLE
+MRtrix tck2connectome takes ONE 3D volumetric node image in diffusion space with a different positive integer label for each ROI (zero for background). The atlas labels can originate from both cortical surfaces and volumetric segmentations; the final node image must be spatially compatible with the tractogram. No need to generate a purely surface-based subcortical parcellation.
+
+RECOMMENDED WORKFLOW
+1. Run or reuse recon-all on each subject's T1. Verify that FreeSurfer surfaces, ribbon, aseg, and transforms are usable.
+2. Transfer the Schaefer atlas from fsaverage to the subject's left/right surfaces using surface registration, producing subject-specific .annot files.
+3. Project the subject's Schaefer annotations into the subject's T1 volume/cortical ribbon (e.g., mri_aparc2aseg). Ensure the cortical labels reflect the subject's surfaces, not a direct MNI-volume warp.
+4. Isolate the Schaefer CORTICAL labels. Note that mri_aparc2aseg can inherit subcortical labels from aseg; do not inadvertently mix or duplicate these when introducing a separate subcortical atlas.
+5. Obtain subcortical labels in the SAME subject T1 space. The simplest robust option is subject-specific FreeSurfer aseg structures. If using an external subcortical atlas (e.g., specialized thalamic nuclei), register it carefully to this patient's T1, using nearest-neighbour resampling for discrete labels.
+6. Choose a nonoverlapping, documented set of ROIs; resolve any cortical/subcortical conflicts explicitly. Assign globally UNIQUE and ideally consecutive integers (for example, cortex 1-100, subcortex 101 onward). Keep a lookup table mapping IDs to names, hemisphere, and source atlas. Confirm both hemispheres and ROI label counts.
+7. Merge the cortical and subcortical labels into ONE node volume in native subject T1 space. Check overlay on T1 before continuing.
+8. Apply the existing T1-to-DWI spatial transform to the combined node volume ONCE, with nearest-neighbour interpolation. Pay attention to FreeSurfer conformed coordinates versus the original T1 coordinates and the exact transform convention; do not assume voxel arrays already share a grid.
+9. Overlay final nodes on a representative b=0 image and the diffusion-space 5TT/GM-WM interface; inspect registration, cortical ribbon, subcortical locations, lesions, gaps, overlap, and partial-volume effects.
+10. Use the combined diffusion-space node image with tck2connectome and the existing tractogram, supplying -tck_weights_in with the existing SIFT2 weights. Inspect node assignment counts and connectivity matrices. Use tck2connectome assignment settings deliberately (default radial search may influence which node an endpoint receives).
+
+KEY QUALITY CONTROL / SCIENTIFIC CAUTIONS
+- Prioritize anatomical accuracy over fine atlas granularity. A detailed MNI-space atlas registered into distorted DoC brains can give false precision. Coarse subject-specific aseg labels may be more defensible than many tiny nuclei.
+- The atlas and ACT 5TT images need not be identical, but must be registered consistently. Ensure endpoints can plausibly map to cortical and subcortical parcels; inspect an overlay of tracks/endpoints when possible.
+- Do not use linear/trilinear interpolation for integer label images. Check that transforming the atlas has not erased small nuclei or fragmented regions.
+- Avoid cortical/subcortical ROI overlap and missing labels. Confirm node indices and atlas ordering so downstream matrices are comparable across subjects.
+- Track QC metrics: number of nonempty parcels, ROI sizes, streamline assignment percentage, unassigned endpoints/streamlines, and anomalous missing edges.
+- Prefer a consistent ROI definition across subjects; document exclusions or atlas fallbacks for badly reconstructed T1 images.
+- If FreeSurfer segmentation from another session is used, register that session's anatomy into the target session accurately and QC carefully before applying its labels; do not assume a longitudinal reconstruction matches without registration.
+
+IMPLEMENTATION NOTES
+- Typical relevant tools: FreeSurfer mri_surf2surf, mri_aparc2aseg, mri_convert; MRtrix mrtransform, labelconvert (where lookup-table remapping is needed), tck2connectome.
+- A conceptual command (use the actual output names and transformations):
+    tck2connectome tracks.tck combined_nodes_DWI.mif connectome.csv \
+        -tck_weights_in sift2_weights.txt \
+        -out_assignments assignments.txt
+- Do not rerun tractography solely to add subcortical nodes if the existing tractogram and ACT approach are valid: recompute endpoint-to-node assignments and the matrix, then assess whether subcortical coverage is sufficient.
+
+WHAT TO ASK / PRODUCE NEXT
+- Identify the target subcortical structures and specific atlas (basic aseg, thalamic nuclei, striatum, brainstem, etc.).
+- Inspect existing shell scripts for surface Schaefer transfer, mri_aparc2aseg, registration, and current tck2connectome inputs.
+- Propose the SMALLEST feasible change to the pipeline: make combined T1-space nodes, transform to DWI, QC, and recompute connectome; avoid unnecessary pipeline redesign.
