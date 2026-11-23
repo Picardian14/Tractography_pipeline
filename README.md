@@ -14,6 +14,27 @@ bash scripts/2_preprocessing/1_submits_all_subs_preproc.sh /data/my_study/bids
 bash scripts/3_to_6_ss3t.sh /data/my_study/bids
 ```
 
+The stage 3–6 launchers accept an optional cortical atlas parameter. Add a
+subcortical atlas parameter to select the combined surface-cortex/subcortex job:
+
+```bash
+# Cortical-only parcellation with a selected atlas.
+bash scripts/3_to_6_msmt.sh /data/my_study/bids --atlas yan100_kong17
+
+# Combined parcellation: Schaefer 100 Yeo7 + Tian scale 2 (132 nodes).
+bash scripts/3_to_6_msmt.sh /data/my_study/bids \
+    --atlas schaefer100-yeo7 --subcortical-atlas tians2
+```
+
+Both options also work with `3_to_6_ss3t.sh` and the dedicated
+`scripts/6_parcellation/2_run_parcellate_cortico_subcortical_jobs.sh` submitter.
+Use the folder names under `templates_parcellations/`. Command-line choices
+override `ATLAS_LABEL_NAME` and `SUBCORTICAL_LABEL_NAME`; omitted cortical
+choices default to Schaefer 100 Yeo7. The dedicated combined submitter defaults
+to Tian scale 2; the stage 3–6 launchers keep cortical-only parcellation unless
+`--subcortical-atlas` is supplied. See
+[combined parcellation instructions](scripts/6_parcellation/CORTICO_SUBCORTICAL.md).
+
 The cohort-level response averaging job is the exception: it receives the BIDS
 root because it reads responses from all subjects:
 

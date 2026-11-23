@@ -32,7 +32,11 @@ ATLAS_LABEL_NAME="${ATLAS_LABEL_NAME:-schaefer100-yeo7}"
 ATLAS_ROOT="${ATLAS_ROOT:-${PIPELINE_ROOT}/templates_parcellations}"
 ATLAS_DIR="${ATLAS_DIR:-${ATLAS_ROOT}/${ATLAS_LABEL_NAME}}"
 TABLE_LABEL_NAME="${TABLE_LABEL_NAME:-LUT_${ATLAS_LABEL_NAME}}"
+# FreeSurfer 6 setup uses optional grep probes that can return 1.
+set +e
+set +o pipefail
 source "$FREESURFER_HOME/SetUpFreeSurfer.sh"
+set -eo pipefail
 export SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR:-${PIPELINE_ROOT}/freesurfer}"
 
 session_dir=$1
@@ -57,6 +61,37 @@ if [ -f "${subject_folder}_model-ss3t_atlas-${ATLAS_LABEL_NAME}_connectome.csv" 
     exit 0
 fi
 
+# Support both the original flat atlases and downloaded atlas bundles.
+# Require one fsaverage annotation per hemisphere rather than guessing
+# between different resolutions or surface spaces.
+lh_annot="$ATLAS_DIR/lh.${ATLAS_LABEL_NAME}.annot"
+rh_annot="$ATLAS_DIR/rh.${ATLAS_LABEL_NAME}.annot"
+if [ ! -f "$lh_annot" ] || [ ! -f "$rh_annot" ]; then
+    shopt -s nullglob
+    lh_annotations=("$ATLAS_DIR"/surface/fsaverage/lh.*.annot)
+    rh_annotations=("$ATLAS_DIR"/surface/fsaverage/rh.*.annot)
+    shopt -u nullglob
+    if [ "${#lh_annotations[@]}" -ne 1 ] || [ "${#rh_annotations[@]}" -ne 1 ]; then
+        echo "Expected one fsaverage annotation per hemisphere in $ATLAS_DIR" >&2
+        exit 1
+    fi
+    lh_annot="${lh_annotations[0]}"
+    rh_annot="${rh_annotations[0]}"
+fi
+lut_dir="$ATLAS_DIR"
+if [ ! -f "$lut_dir/$TABLE_LABEL_NAME.txt" ]; then
+    lut_dir="$ATLAS_DIR/lut"
+fi
+for atlas_file in "$lh_annot" "$rh_annot" \
+    "$lut_dir/$TABLE_LABEL_NAME.txt" "$lut_dir/${TABLE_LABEL_NAME}_OUTPUT.txt"; do
+    if [ ! -s "$atlas_file" ]; then
+        echo "Missing or empty atlas file: $atlas_file" >&2
+        exit 1
+    fi
+done
+printf 'Atlas: %s\nLeft annotation: %s\nRight annotation: %s\nLookup tables: %s\n' \
+    "$ATLAS_LABEL_NAME" "$lh_annot" "$rh_annot" "$lut_dir"
+
 # A dedicated trial SUBJECTS_DIR also needs FreeSurfer's atlas reference.
 if [ ! -d "$SUBJECTS_DIR/fsaverage" ]; then
     if [ ! -d "$FREESURFER_HOME/subjects/fsaverage" ]; then
@@ -74,11 +109,11 @@ if [ ! -f "$tracks" ] || [ ! -f "$t1_to_dwi" ]; then
 fi
 
 mri_surf2surf --srcsubject fsaverage --trgsubject "$fs_subject_id" --hemi lh \
-    --sval-annot "$ATLAS_DIR/lh.${ATLAS_LABEL_NAME}.annot" \
+    --sval-annot "$lh_annot" \
     --tval "$SUBJECTS_DIR/$fs_subject_id/label/lh.${ATLAS_LABEL_NAME}.annot"
 
 mri_surf2surf --srcsubject fsaverage --trgsubject "$fs_subject_id" --hemi rh \
-    --sval-annot "$ATLAS_DIR/rh.${ATLAS_LABEL_NAME}.annot" \
+    --sval-annot "$rh_annot" \
     --tval "$SUBJECTS_DIR/$fs_subject_id/label/rh.${ATLAS_LABEL_NAME}.annot"
 
 mri_aparc2aseg --s "$fs_subject_id" \
@@ -88,8 +123,8 @@ mrconvert "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}.mgz" \
     "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}.nii.gz" -force
 labelconvert \
     "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}.nii.gz" \
-    "$ATLAS_DIR/$TABLE_LABEL_NAME.txt" \
-    "$ATLAS_DIR/${TABLE_LABEL_NAME}_OUTPUT.txt" \
+    "$lut_dir/$TABLE_LABEL_NAME.txt" \
+    "$lut_dir/${TABLE_LABEL_NAME}_OUTPUT.txt" \
     "$SUBJECTS_DIR/$fs_subject_id/mri/${ATLAS_LABEL_NAME}_parcels.nii.gz" \
     -force
 

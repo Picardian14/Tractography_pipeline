@@ -4,7 +4,7 @@
 # Slurm workflow.
 #
 # Usage:
-#   ./scripts/3_to_6_msmt.sh /absolute/path/to/bids
+#   ./scripts/3_to_6_msmt.sh /absolute/path/to/bids [--atlas NAME] [--subcortical-atlas NAME]
 
 set -euo pipefail
 
@@ -14,12 +14,43 @@ workflow_start_timestamp=$(date '+%Y-%m-%d %H:%M:%S %z')
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
-    echo "Usage: $0 /absolute/path/to/bids" >&2
+if [ "$#" -lt 1 ] || [ ! -d "$1" ]; then
+    echo "Usage: $0 /absolute/path/to/bids [--atlas NAME] [--subcortical-atlas NAME]" >&2
     exit 2
 fi
 
 BIDS_ROOT="$(readlink -f "$1")"
+shift
+export ATLAS_LABEL_NAME="${ATLAS_LABEL_NAME:-schaefer100-yeo7}"
+export SUBCORTICAL_LABEL_NAME="${SUBCORTICAL_LABEL_NAME:-tians2}"
+include_subcortex=false
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --atlas|--subcortical-atlas)
+            if [ "$#" -lt 2 ] || [ -z "$2" ] || [[ "$2" == --* ]]; then
+                echo "Missing atlas name after $1" >&2
+                exit 2
+            fi
+            if [ "$1" = --atlas ]; then
+                ATLAS_LABEL_NAME="$2"
+            else
+                SUBCORTICAL_LABEL_NAME="$2"
+                include_subcortex=true
+            fi
+            shift 2
+            ;;
+        *) echo "Unknown argument: $1" >&2; exit 2 ;;
+    esac
+done
+atlas_dir="${ATLAS_DIR:-${ATLAS_ROOT:-$PIPELINE_ROOT/templates_parcellations}/$ATLAS_LABEL_NAME}"
+if [ ! -d "$atlas_dir" ]; then
+    echo "Cortical atlas directory not found: $atlas_dir" >&2
+    exit 2
+fi
+parcellation_atlas="$ATLAS_LABEL_NAME"
+if [ "$include_subcortex" = true ]; then
+    parcellation_atlas="${ATLAS_LABEL_NAME}-${SUBCORTICAL_LABEL_NAME}"
+fi
 OUTPUT_DIR="${OUTPUT_DIR:-${PIPELINE_ROOT}/outputs}"
 FREESURFER_SUBJECTS_DIR="${FREESURFER_SUBJECTS_DIR:-${PIPELINE_ROOT}/freesurfer}"
 export FREESURFER_SUBJECTS_DIR
@@ -35,6 +66,9 @@ tissue_job="${TISSUE_JOB:-${SCRIPT_DIR}/4_segment5tt/tissue_job.sh}"
 tckgen_job="${TCKGEN_MSMT_JOB:-${SCRIPT_DIR}/5_tractography/tckgen_msmt_job.sh}"
 recon_all_job="${RECON_ALL_JOB:-${SCRIPT_DIR}/6_parcellation/recon_all_job.sh}"
 parcellate_job="${PARCELLATE_MSMT_JOB:-${SCRIPT_DIR}/6_parcellation/parcellate_msmt_job.sh}"
+if [ "$include_subcortex" = true ]; then
+    parcellate_job="${PARCELLATE_CORTICO_SUBCORTICAL_JOB:-${SCRIPT_DIR}/6_parcellation/parcellate_cortico_subcortical_job.sh}"
+fi
 
 for job_script in \
     "$dwi2response_job" "$responsemean_job" "$msmt_csd_job" "$tissue_job" \
@@ -52,6 +86,7 @@ fi
 
 printf 'MSMT workflow started: %s\n' "$workflow_start_timestamp" | tee "$workflow_timing_log"
 echo "Workflow timing log: $workflow_timing_log"
+echo "Parcellation atlas: $parcellation_atlas"
 
 # Print progress to stderr so command substitution receives only the job ID.
 submit_job() {
@@ -154,11 +189,11 @@ for analysis_id in "${sessions[@]}"; do
         "$tckgen_job" "$session_dir")
 
     submit_job "MSMT parcellation for $analysis_id" \
-        --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT",WORKFLOW_START_EPOCH="$workflow_start_epoch",WORKFLOW_TIMING_LOG="$workflow_timing_log" \
+        --export=ALL,PIPELINE_ROOT="$PIPELINE_ROOT",MODEL=msmt,ATLAS_LABEL_NAME="$ATLAS_LABEL_NAME",SUBCORTICAL_LABEL_NAME="$SUBCORTICAL_LABEL_NAME",WORKFLOW_START_EPOCH="$workflow_start_epoch",WORKFLOW_TIMING_LOG="$workflow_timing_log" \
         --dependency="afterok:${tck_id}:${recon_id[$analysis_id]}" \
-        --job-name="parcellate-msmt-$analysis_id" \
-        --output="$OUTPUT_DIR/${analysis_id}-parcellate-msmt-%j.out.txt" \
-        --error="$OUTPUT_DIR/${analysis_id}-parcellate-msmt-%j.err.txt" \
+        --job-name="parcellate-msmt-${parcellation_atlas}-$analysis_id" \
+        --output="$OUTPUT_DIR/${analysis_id}-parcellate-msmt-${parcellation_atlas}-%j.out.txt" \
+        --error="$OUTPUT_DIR/${analysis_id}-parcellate-msmt-${parcellation_atlas}-%j.err.txt" \
         --chdir="$session_dir/dwi" \
         --mem=32G --time=24:00:00 \
         "$parcellate_job" "$session_dir" >/dev/null

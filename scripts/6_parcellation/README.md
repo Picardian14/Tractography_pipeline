@@ -125,7 +125,51 @@ sets `NO_FSFAST=1` to skip the unused FSFAST MATLAB startup configuration.
 The script uses the SIFT2 weights directly. It does not apply inverse-node-
 volume scaling or per-subject maximum normalization.
 
+## Selecting downloaded surface atlases (MSMT)
+
+Set `ATLAS_LABEL_NAME` to the folder name under `templates_parcellations`.
+The MSMT job accepts the original flat layout or a downloaded bundle with
+exactly one `lh.*.annot` and one `rh.*.annot` in `surface/fsaverage/`, plus
+`lut/LUT_<atlas>.txt` and `lut/LUT_<atlas>_OUTPUT.txt`. The annotations can
+retain their downloaded filenames. This route requires fsaverage surface
+annotations; volume-only atlases need a volumetric registration route.
+
+For a single HCP subject, submit from the repository root on the cluster:
+
+```bash
+root="$PWD"
+session="$root/outputs/hcp_single_subject/sub-100307/ses-1"
+ATLAS_LABEL_NAME=yan100_kong17 \
+FREESURFER_SUBJECTS_DIR="$root/outputs/hcp_single_subject/freesurfer" sbatch \
+  --export=ALL,PIPELINE_ROOT="$root" \
+  --job-name=parcellate-yan100_kong17-sub-100307 \
+  --chdir="$session/dwi" --mem=32G --time=2:00:00 \
+  --output="$root/outputs/sub-100307-yan100_kong17-%j.out" \
+  --error="$root/outputs/sub-100307-yan100_kong17-%j.err" \
+  "$root/scripts/6_parcellation/parcellate_msmt_job.sh" "$session"
+```
+
+The subject's MSMT tractogram, SIFT2 weights, T1-to-DWI transform and completed
+FreeSurfer reconstruction must already exist. For an entire dataset, export
+`ATLAS_LABEL_NAME` before running `2_run_parcellate_msmt_jobs.sh` as usual.
+
 ## Surface cortex with volumetric subcortex
+
+For the downloaded cortical atlas folders, use
+`2_run_parcellate_cortico_subcortical_jobs.sh BIDS_OR_SESSION_DIR` to submit
+`parcellate_cortico_subcortical_job.sh` for each session. The job combines surface-derived cortical
+ribbon labels with a registered subcortical atlas, reuses native subcortical
+registration across cortical atlases, and preserves the fine anatomical grid
+in DWI coordinates. Defaults are Schaefer 100 Yeo7 + Tian S2 (132 nodes), with
+MSMT tracks/weights. A previously registered native subcortical map can be
+supplied with `SUBCORTICAL_NATIVE`. See [CORTICO_SUBCORTICAL.md](CORTICO_SUBCORTICAL.md)
+for commands, settings, outputs and separate numerical/anatomical QC.
+
+Select atlases at submission with `--atlas schaefer100-yeo7
+--subcortical-atlas tians2`. The same options work on `scripts/3_to_6_msmt.sh`
+and `scripts/3_to_6_ss3t.sh`; supplying `--subcortical-atlas` selects the
+combined job in those workflows, while `--atlas` alone keeps cortical-only
+parcellation.
 
 Use `parcellate_schaefer_tian_job.sh` for a separate Schaefer + Tian variant:
 

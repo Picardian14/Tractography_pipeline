@@ -214,8 +214,15 @@ elif name == 'sbatch':
         labels[3:4] = 2
         affine = np.diag([-1., 1., 1., 1.])
         nib.save(nib.MGHImage(labels, affine), fs_mri / "schaefer100-yeo7.mgz")
-        for model, translation in (("msmt", [0, 0, 0]), ("ss3t", [2, -3, 4])):
-            with self.subTest(model=model):
+        nib.save(nib.MGHImage(labels, affine), fs_mri / "yan100_kong17.mgz")
+        for model, atlas, translation in (
+            ("msmt", "schaefer100-yeo7", [0, 0, 0]),
+            ("ss3t", "schaefer100-yeo7", [2, -3, 4]),
+            ("msmt", "yan100_kong17", [0, 0, 0]),
+            ("ss3t", "yan100_kong17", [2, -3, 4]),
+        ):
+            with self.subTest(model=model, atlas=atlas):
+                self.env["ATLAS_LABEL_NAME"] = atlas
                 M = np.eye(4)
                 M[:3, 3] = translation
                 np.savetxt(dwi_dir / "rigid_T1toDWI.txt", M)
@@ -224,12 +231,18 @@ elif name == 'sbatch':
                 result = subprocess.run(["bash", str(REPO / f"scripts/6_parcellation/parcellate_{model}_job.sh"), str(self.session)],
                                         cwd=dwi_dir, env=self.env, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                parcels = nib.load(dwi_dir / "sub-100307_atlas-schaefer100-yeo7_space-dwi_parcels.nii.gz")
+                parcels = nib.load(dwi_dir / f"sub-100307_atlas-{atlas}_space-dwi_parcels.nii.gz")
                 np.testing.assert_array_equal(parcels.get_fdata(), labels)
                 np.testing.assert_allclose(parcels.affine, np.linalg.inv(M) @ affine, atol=1e-5)
         calls = [json.loads(line) for line in Path(self.env["TEST_COMMAND_LOG"]).read_text().splitlines()]
+        yan_surface_calls = [call for call in calls if call[0] == "mri_surf2surf" and "yan100_kong17" in " ".join(call)]
+        self.assertEqual(len(yan_surface_calls), 4)
+        for call in yan_surface_calls:
+            self.assertIn("/surface/fsaverage/", call[call.index("--sval-annot") + 1])
+        yan_lut_call = next(call for call in calls if call[0] == "labelconvert" and "yan100_kong17" in call[1])
+        self.assertEqual(Path(yan_lut_call[2]).parent.name, "lut")
         connectomes = [call for call in calls if call[0] == "tck2connectome"]
-        self.assertEqual(len(connectomes), 2)
+        self.assertEqual(len(connectomes), 4)
         self.assertTrue(all(any("space-dwi_parcels" in arg for arg in call) for call in connectomes))
         self.assertTrue((Path(self.env["FREESURFER_SUBJECTS_DIR"]) / "fsaverage").samefile(
             Path(self.env["FREESURFER_HOME"]) / "subjects/fsaverage"))
