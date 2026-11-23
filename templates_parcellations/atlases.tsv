@@ -1,0 +1,53 @@
+atlas	n_rois	kind	reference	source	terms_to_check	terms_status
+aal	166	deterministic, anatomical	Tzourio-Mazoyer et al. (2002) NeuroImage 15:273. doi:10.1006/nimg.2001.0978	nilearn fetch_atlas_aal (SPM12 version)	AAL distribution terms	unverified
+aicha	384	deterministic, homotopic: 192 regions per hemisphere	Joliot et al. (2015) J Neurosci Methods 254:46. doi:10.1016/j.jneumeth.2015.07.013	gin.cnrs.fr AICHA v2 (AICHA1mm.nii, one label per hemisphere)	GIN distribution terms	unverified
+basc064	64	deterministic, symmetric	Bellec et al. (2010) NeuroImage 51:1126; Urchs et al. (2019) MNI Open Research 3:3	nilearn fetch_atlas_basc_multiscale_2015 (sym)	BASC/MIST distribution terms	unverified
+basc122	122	deterministic, symmetric	Bellec et al. (2010) NeuroImage 51:1126; Urchs et al. (2019) MNI Open Research 3:3	nilearn fetch_atlas_basc_multiscale_2015 (sym)	BASC/MIST distribution terms	unverified
+basc197	197	deterministic, symmetric	Bellec et al. (2010) NeuroImage 51:1126; Urchs et al. (2019) MNI Open Research 3:3	nilearn fetch_atlas_basc_multiscale_2015 (sym)	BASC/MIST distribution terms	unverified
+basc325	325	deterministic, symmetric	Bellec et al. (2010) NeuroImage 51:1126; Urchs et al. (2019) MNI Open Research 3:3	nilearn fetch_atlas_basc_multiscale_2015 (sym)	BASC/MIST distribution terms	unverified
+basc444	444	deterministic, symmetric	Bellec et al. (2010) NeuroImage 51:1126; Urchs et al. (2019) MNI Open Research 3:3	nilearn fetch_atlas_basc_multiscale_2015 (sym)	BASC/MIST distribution terms	unverified
+destrieux	150	deterministic, anatomical	Destrieux et al. (2010) NeuroImage 53:1. doi:10.1016/j.neuroimage.2010.06.010	nilearn fetch_atlas_destrieux_2009	FreeSurfer-derived; FreeSurfer license	unverified
+difumo1024	1024	probabilistic (soft parcels)	Dadi et al. (2020) NeuroImage 221:117126. doi:10.1016/j.neuroimage.2020.117126	nilearn fetch_atlas_difumo	DiFuMo distribution terms	unverified
+difumo128	128	probabilistic (soft parcels)	Dadi et al. (2020) NeuroImage 221:117126. doi:10.1016/j.neuroimage.2020.117126	nilearn fetch_atlas_difumo	DiFuMo distribution terms	unverified
+difumo256	256	probabilistic (soft parcels)	Dadi et al. (2020) NeuroImage 221:117126. doi:10.1016/j.neuroimage.2020.117126	nilearn fetch_atlas_difumo	DiFuMo distribution terms	unverified
+difumo512	512	probabilistic (soft parcels)	Dadi et al. (2020) NeuroImage 221:117126. doi:10.1016/j.neuroimage.2020.117126	nilearn fetch_atlas_difumo	DiFuMo distribution terms	unverified
+difumo64	64	probabilistic (soft parcels)	Dadi et al. (2020) NeuroImage 221:117126. doi:10.1016/j.neuroimage.2020.117126	nilearn fetch_atlas_difumo	DiFuMo distribution terms	unverified
+glasser	360	deterministic, cortical: 180 regions per hemisphere	Glasser et al. (2016) Nature 536:171. doi:10.1038/nature18933	figshare volumetric HCP-MMP1.0 (files 5594363, 5534027), split into left (1-180) and right (181-360)	HCP Open Access Data Use Terms; figshare item license	unverified
+harvardoxfordcort	48	deterministic, anatomical	Desikan et al. (2006) NeuroImage 31:968; Makris et al. (2006) Schizophr Res 83:155	nilearn fetch_atlas_harvard_oxford (FSL)	FSL licence (non-commercial clause)	unverified
+harvardoxfordsub	21	deterministic, anatomical	Desikan et al. (2006) NeuroImage 31:968; Makris et al. (2006) Schizophr Res 83:155	nilearn fetch_atlas_harvard_oxford (FSL)	FSL licence (non-commercial clause)	unverified
+msdl	39	probabilistic	Varoquaux et al. (2011) IPMI, LNCS 6801:562	nilearn fetch_atlas_msdl	MSDL distribution terms	unverified
+pauli	16	deterministic, subcortical	Pauli et al. (2018) Sci Data 5:180063. doi:10.1038/sdata.2018.63	nilearn fetch_atlas_pauli_2017	Pauli atlas distribution terms	unverified
+schaefer100	100	deterministic, cortical	Schaefer et al. (2018) Cereb Cortex 28:3095. doi:10.1093/cercor/bhx179	nilearn fetch_atlas_schaefer_2018 (CBIG)	CBIG repository license	unverified
+schaefer1000	1000	deterministic, cortical	Schaefer et al. (2018) Cereb Cortex 28:3095. doi:10.1093/cercor/bhx179	nilearn fetch_atlas_schaefer_2018 (CBIG)	CBIG repository license	unverified
+schaefer100017n	1000	deterministic, cortical	Schaefer et al. (2018) Cereb Cortex 28:3095. doi:10.1093/cercor/bhx179	nilearn fetch_atlas_schaefer_2018 (CBIG)	CBIG repository license	unverified
+schaefer10017n	100	deterministic, cortical	Schaefer et al. (2018) Cereb Cortex 28:3095. doi:10.1093/cercor/bhx179	nilearn fetch_atlas_schaefer_2018 (CBIG)	CBIG repository license	unverified
+schaefer200	200	deterministic, cortical	Schaefer et al. (2018) Cereb Cortex 28:3095. doi:10.1093/cercor/bhx179	nilearn fetch_atlas_schaefer_2018 (CBIG)	CBIG repository license	unverified
+schaefer20017n	200	deterministic, cortical	Schaefer et al. (2018) Cereb Cortex 28:3095. doi:10.1093/cercor/bhx179	nilearn fetch_atlas_schaefer_2018 (CBIG)	CBIG repository license	unverified
+schaefer300	300	deterministic, cortical	Schaefer et al. (2018) Cereb Cortex 28:3095. doi:10.1093/cercor/bhx179	nilearn fetch_atlas_schaefer_2018 (CBIG)	CBIG repository license	unverified
+schaefer400	400	deterministic, cortical	Schaefer et al. (2018) Cereb Cortex 28:3095. doi:10.1093/cercor/bhx179	nilearn fetch_atlas_schaefer_2018 (CBIG)	CBIG repository license	unverified
+schaefer40017n	400	deterministic, cortical	Schaefer et al. (2018) Cereb Cortex 28:3095. doi:10.1093/cercor/bhx179	nilearn fetch_atlas_schaefer_2018 (CBIG)	CBIG repository license	unverified
+schaefer400tians2	432	deterministic, cortical + subcortical	Schaefer et al. (2018) Cereb Cortex; Tian et al. (2020) Nat Neurosci	Schaefer (nilearn) + Tian (github.com/yetianmed/subcortex), combined here	both sources' terms	unverified
+schaefer400tians3	450	deterministic, cortical + subcortical	Schaefer et al. (2018) Cereb Cortex; Tian et al. (2020) Nat Neurosci	Schaefer (nilearn) + Tian (github.com/yetianmed/subcortex), combined here	both sources' terms	unverified
+schaefer500	500	deterministic, cortical	Schaefer et al. (2018) Cereb Cortex 28:3095. doi:10.1093/cercor/bhx179	nilearn fetch_atlas_schaefer_2018 (CBIG)	CBIG repository license	unverified
+schaefer600	600	deterministic, cortical	Schaefer et al. (2018) Cereb Cortex 28:3095. doi:10.1093/cercor/bhx179	nilearn fetch_atlas_schaefer_2018 (CBIG)	CBIG repository license	unverified
+schaefer800	800	deterministic, cortical	Schaefer et al. (2018) Cereb Cortex 28:3095. doi:10.1093/cercor/bhx179	nilearn fetch_atlas_schaefer_2018 (CBIG)	CBIG repository license	unverified
+smith10	10	probabilistic (ICA maps)	Smith et al. (2009) PNAS 106:13040. doi:10.1073/pnas.0905267106	nilearn fetch_atlas_smith_2009	BrainMap/FMRIB distribution terms	unverified
+smith20	20	probabilistic (ICA maps)	Smith et al. (2009) PNAS 106:13040. doi:10.1073/pnas.0905267106	nilearn fetch_atlas_smith_2009	BrainMap/FMRIB distribution terms	unverified
+smith70	70	probabilistic (ICA maps)	Smith et al. (2009) PNAS 106:13040. doi:10.1073/pnas.0905267106	nilearn fetch_atlas_smith_2009	BrainMap/FMRIB distribution terms	unverified
+tians1	16	deterministic, subcortical	Tian et al. (2020) Nat Neurosci 23:1421. doi:10.1038/s41593-020-00711-6	github.com/yetianmed/subcortex	repository license	unverified
+tians2	32	deterministic, subcortical	Tian et al. (2020) Nat Neurosci 23:1421. doi:10.1038/s41593-020-00711-6	github.com/yetianmed/subcortex	repository license	unverified
+tians3	50	deterministic, subcortical	Tian et al. (2020) Nat Neurosci 23:1421. doi:10.1038/s41593-020-00711-6	github.com/yetianmed/subcortex	repository license	unverified
+yan100_kong17	100	deterministic, homotopic	Yan et al. (2023) NeuroImage 273:120010. doi:10.1016/j.neuroimage.2023.120010	github.com/ThomasYeoLab/CBIG	CBIG repository license	unverified
+yan100_yeo17	100	deterministic, homotopic	Yan et al. (2023) NeuroImage 273:120010. doi:10.1016/j.neuroimage.2023.120010	github.com/ThomasYeoLab/CBIG	CBIG repository license	unverified
+yan100_yeo7	100	deterministic, homotopic	Yan et al. (2023) NeuroImage 273:120010. doi:10.1016/j.neuroimage.2023.120010	github.com/ThomasYeoLab/CBIG	CBIG repository license	unverified
+yan200_kong17	200	deterministic, homotopic	Yan et al. (2023) NeuroImage 273:120010. doi:10.1016/j.neuroimage.2023.120010	github.com/ThomasYeoLab/CBIG	CBIG repository license	unverified
+yan200_yeo17	200	deterministic, homotopic	Yan et al. (2023) NeuroImage 273:120010. doi:10.1016/j.neuroimage.2023.120010	github.com/ThomasYeoLab/CBIG	CBIG repository license	unverified
+yan200_yeo7	200	deterministic, homotopic	Yan et al. (2023) NeuroImage 273:120010. doi:10.1016/j.neuroimage.2023.120010	github.com/ThomasYeoLab/CBIG	CBIG repository license	unverified
+yan400_kong17	400	deterministic, homotopic	Yan et al. (2023) NeuroImage 273:120010. doi:10.1016/j.neuroimage.2023.120010	github.com/ThomasYeoLab/CBIG	CBIG repository license	unverified
+yan400_yeo17	400	deterministic, homotopic	Yan et al. (2023) NeuroImage 273:120010. doi:10.1016/j.neuroimage.2023.120010	github.com/ThomasYeoLab/CBIG	CBIG repository license	unverified
+yan400_yeo7	400	deterministic, homotopic	Yan et al. (2023) NeuroImage 273:120010. doi:10.1016/j.neuroimage.2023.120010	github.com/ThomasYeoLab/CBIG	CBIG repository license	unverified
+yan800_kong17	800	deterministic, homotopic	Yan et al. (2023) NeuroImage 273:120010. doi:10.1016/j.neuroimage.2023.120010	github.com/ThomasYeoLab/CBIG	CBIG repository license	unverified
+yan800_yeo17	800	deterministic, homotopic	Yan et al. (2023) NeuroImage 273:120010. doi:10.1016/j.neuroimage.2023.120010	github.com/ThomasYeoLab/CBIG	CBIG repository license	unverified
+yan800_yeo7	800	deterministic, homotopic	Yan et al. (2023) NeuroImage 273:120010. doi:10.1016/j.neuroimage.2023.120010	github.com/ThomasYeoLab/CBIG	CBIG repository license	unverified
+yeo17	17	deterministic, networks	Yeo et al. (2011) J Neurophysiol 106:1125. doi:10.1152/jn.00338.2011	FreeSurfer Yeo_JNeurophysiol11_MNI152	FreeSurfer distribution terms	unverified
+yeo7	7	deterministic, networks	Yeo et al. (2011) J Neurophysiol 106:1125. doi:10.1152/jn.00338.2011	FreeSurfer Yeo_JNeurophysiol11_MNI152	FreeSurfer distribution terms	unverified

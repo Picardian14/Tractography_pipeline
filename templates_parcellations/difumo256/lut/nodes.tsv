@@ -1,0 +1,257 @@
+map_number	4D_map_index_0based	name
+1	0	Middle frontal gyrus anterior LH
+2	1	Middle frontal gyrus anterior RH
+3	2	Cerebrospinal fluid (between superior parietal lobule and skull)
+4	3	Inferior frontal sulcus posterior RH
+5	4	Superior longitudinal fasciculus II middle
+6	5	Cuneus anterior
+7	6	Lateral ventricles anterior horns
+8	7	Lateral occipital cortex LH
+9	8	Retrocalcarine cortex
+10	9	Collateral sulcus anterior
+11	10	Cerebrospinal fluid (between intraparietal sulcus and skull)
+12	11	Superior frontal gyrus anterior
+13	12	Cingulate cortex mid-anterior
+14	13	Cingulate cortex mid-posterior
+15	14	Posterior cingulate cortex posterior
+16	15	Pars opercularis pars triangularis LH
+17	16	Medial frontal cortex posterior
+18	17	Cerebrospinal fluid (between precuneus and skull)
+19	18	Dorsal visual stream superior
+20	19	Frontal operculum LH
+21	20	Amygdala
+22	21	Supramarginal gyrus LH
+23	22	Postcentral gyrus LH
+24	23	Parieto-occipital sulcus middle
+25	24	Occipital pole inferior
+26	25	Superior temporal gyrus LH
+27	26	Intraparietal sulcus anterior
+28	27	Inferior occipital gyrus
+29	28	Angular gyrus superior RH
+30	29	Postcentral sulcus superior LH
+31	30	Superior occipital sulcus RH
+32	31	Anterior cingulate cortex middle
+33	32	Cerebellum IX
+34	33	Corpus callosum forceps minor LH
+35	34	Occipitotemporal sulcus posterior RH
+36	35	Cerebellum VIIb
+37	36	Caudate inferior
+38	37	Supramarginal gyrus RH
+39	38	Paracingulate gyrus anterior
+40	39	Paracingulate gyrus posterior
+41	40	Thalamus middle
+42	41	Postcentral sulcus inferior
+43	42	Ventromedial prefrontal cortex
+44	43	Precentral sulcus medial
+45	44	Superior frontal sulcus LH
+46	45	Postcentral sulcus superior RH
+47	46	Supramarginal gyrus anterior RH
+48	47	Frontal operculum RH
+49	48	Lingual gyrus mid-anterior
+50	49	Cerebellum VIIIb posterior
+51	50	Central sulcus superior RH
+52	51	Cerebrospinal fluid (between parietal lobe and skull)
+53	52	Caudate anterior
+54	53	Superior frontal sulcus anterior RH
+55	54	Corona radiata anterior
+56	55	Suborbital cortex
+57	56	Inferior frontal gyrus LH
+58	57	Caudate superior
+59	58	Fusiform gyrus posterior LH
+60	59	Genu of callosal body
+61	60	Frontal pole superior
+62	61	Lingual gyrus middle
+63	62	Intraparietal sulcus superior RH
+64	63	Angular gyrus inferior LH
+65	64	Precuneus anterior
+66	65	Anterior commissure
+67	66	Middle frontal gyrus middle RH
+68	67	Superior frontal gyrus posterior LH
+69	68	Cerebellum VIIIb anterior
+70	69	Parietal operculum
+71	70	Isthmus of corpus callosum
+72	71	Putamen inferior
+73	72	Supramarginal gyrus
+74	73	Insula
+75	74	Inferior frontal sulcus posterior LH
+76	75	Superior frontal gyrus posterior
+77	76	Cuneus posterior
+78	77	Lingual gyrus mid-posterior
+79	78	Frontal pole lateral RH
+80	79	Inferior temporal gyrus posterior LH
+81	80	Cerebellum Crus I RH
+82	81	Cerebrospinal fluid (between superior frontal gyrus anterior and skull)
+83	82	Central sulcus inferior
+84	83	Superior occipital sulcus inferior
+85	84	Ventral visual stream
+86	85	Heschl’s gyrus
+87	86	Central and postcentral sulci mid-superior
+88	87	Cuneus inferior
+89	88	Transverse occipital sulcus
+90	89	Posterior cingulate cortex middle
+91	90	Cerebellum Crus I superior
+92	91	Frontomarginal gyrus
+93	92	Optic radiation LH
+94	93	Inferior frontal sulcus anterior LH
+95	94	Hippocampus posterior
+96	95	Cerebellum IV
+97	96	Superior occipital gyrus RH
+98	97	Forceps minor RH
+99	98	Precentral sulcus superior
+100	99	Central sulcus middle
+101	100	Internal capsule anterior horn RH
+102	101	Posterior cingulate cortex inferior
+103	102	Lateral ventricles middle
+104	103	Frontal pole inferior
+105	104	Putamen anterior
+106	105	Intraparietal sulcus posterior LH
+107	106	Occipital pole middle
+108	107	Middle temporal gyrus posterior
+109	108	Angular gyrus RH
+110	109	Insula anterior
+111	110	Retrosplenial cortex
+112	111	Inferior occipital gyrus posterior
+113	112	Lateral occipital cortex anterior
+114	113	Corona radiata
+115	114	Superior parts of central and postcentral sulci LH
+116	115	Superior frontal gyrus medial mid-posterior
+117	116	Collateral sulcus middle
+118	117	Intraparietal sulcus inferior RH
+119	118	Calcarine sulcus posterior
+120	119	Lateral occipital cortex superior
+121	120	Dorsomedial prefrontal cortex
+122	121	Occipital pole superior
+123	122	Callosomarginal sulcus
+124	123	Intraparietal sulcus posterior RH
+125	124	Hippocampal fissure
+126	125	Angular gyrus posterior RH
+127	126	Angular gyrus posterior LH
+128	127	Parieto-occipital sulcus mid-anterior
+129	128	Precentral sulcus RH
+130	129	Pons superior
+131	130	Suborbital cortex medial
+132	131	Insula antero-inferior
+133	132	Thalamus medial
+134	133	Middle temporal gyrus anterior RH
+135	134	Superior corona radiata RH
+136	135	Cerebrospinal fluid (between middle frontal gyrus posterior and skull)
+137	136	Paracentral lobule posterior
+138	137	Pons inferior
+139	138	Calcarine sulcus middle
+140	139	Lateral ventricles posterior horns
+141	140	Inferior frontal gyrus anterior LH
+142	141	Central and postcentral sulci superior
+143	142	Cerebellum Crus I posterior
+144	143	Inferior frontal sulcus anterior RH
+145	144	Angular gyrus superior LH
+146	145	Intermediate primus of Jensen RH
+147	146	Cerebellum Crus I lateral RH
+148	147	Lateral fissure anterior
+149	148	Anterior cingulate cortex inferior
+150	149	Cerebrospinal fluid (between precentral gyrus and skull)
+151	150	Parieto-occipital sulcus anterior
+152	151	Precentral gyrus superior
+153	152	Cerebrospinal fluid (between parieto-occipital sulcus and skull)
+154	153	Cerebellum V
+155	154	Fusiform gyrus LH
+156	155	Cerebellum Crus II
+157	156	Corona radiata anterior RH
+158	157	Thalamus lateral
+159	158	Inferior occipital sulcus
+160	159	Superior temporal sulcus posterior LH
+161	160	Cerebellum VI superior LH
+162	161	Angular gyrus inferior RH
+163	162	Superior temporal gyrus medial
+164	163	Middle temporal gyrus anterior LH
+165	164	Fluid between cerebellum and pons
+166	165	Angular gyrus superior
+167	166	Planum temporale LH
+168	167	Hippocampus anterior
+169	168	Fornix anterior
+170	169	Temporal pole
+171	170	Precentral sulcus inferior LH
+172	171	Cerebellum Crus I anterior LH
+173	172	Cerebellum VI anterior
+174	173	Middle frontal gyrus posterior LH
+175	174	Cerebrospinal fluid (between middle frontal gyrus anterior and skull)
+176	175	Anterior cingulate cortex superior
+177	176	Angular gyrus anterior LH
+178	177	Posterior cingulate
+179	178	Cerebellum Crus II
+180	179	Cerebrospinal fluid (between precentral gyrus superior and skull)
+181	180	Cerebellum VI
+182	181	Cerebrospinal fluid (between superior frontal gyrus posterior and skull)
+183	182	Intraparietal sulcus LH
+184	183	Cuneus superior
+185	184	Frontal pole lateral LH
+186	185	Superior temporal sulcus RH
+187	186	Cerebellum VIIb
+188	187	Posterior cingulate cortex superior
+189	188	Superior parietal lobule anterior
+190	189	Insula posterior inferior
+191	190	Central opercular cortex
+192	191	Middle frontal gyrus posterior RH
+193	192	Lingual gyrus lateral
+194	193	Lateral occipital cortex
+195	194	Lingual gyrus medial
+196	195	Superior frontal gyrus posterior RH
+197	196	Parieto-occipital sulcus mid-posterior
+198	197	Cerebrospinal fluid (between paracentral lobule and skull)
+199	198	Putamen and globus pallidus
+200	199	Cerebellum V
+201	200	Cingulate sulcus posterior
+202	201	Cerebrospinal fluid (between middle frontal gyrus and skull RH)
+203	202	Fusiform gyrus RH
+204	203	Planum temporale RH
+205	204	Pericallosal sulcus middle
+206	205	Thalamus inferior
+207	206	Middle frontal gyrus posterior
+208	207	Superior parietal lobule middle
+209	208	Cerebellum Crus I posterior LH
+210	209	Precentral sulcus inferior RH
+211	210	Cerebellum VI RH
+212	211	Inferior temporal sulcus posterior LH
+213	212	Lingual gyrus anterior
+214	213	Middle frontal gyrus anterior
+215	214	Superior parietal lobule posterior
+216	215	Parieto-occipital sulcus posterior
+217	216	Superior temporal gyrus anterior
+218	217	Precuneus inferior
+219	218	Paracentral lobule
+220	219	Thalamic radiation mid-posterior
+221	220	Precentral sulcus superior LH
+222	221	Calcarine sulcus mid-anterior
+223	222	Cerebellum VI superior
+224	223	Putamen superior
+225	224	Middle temporal gyrus middle RH
+226	225	Insula antero-superior
+227	226	Parietal operculum LH
+228	227	Thalamus superior
+229	228	Dorsomedial prefrontal cortex posterior
+230	229	Angular sulcus inferior RH
+231	230	Corona radiata posterior LH
+232	231	Pars opercularis
+233	232	Cerebellum VI anterior
+234	233	Superior occipital sulcus LH
+235	234	Dorsomedial prefrontal cortex anterior
+236	235	Pars orbitalis RH
+237	236	Occipitotemporal gyrus anterior
+238	237	Calcarine sulcus anterior
+239	238	Precentral gyrus middle
+240	239	Lateral occipital cortex inferior
+241	240	Precuneus posterior
+242	241	Anterior horizontal ramus lateral fissure RH
+243	242	Postcentral sulcus middle RH
+244	243	Ventromedial prefrontal cortex anterior
+245	244	Cerebrospinal fluid (between middle frontal gyrus RH and skull)
+246	245	Cerebrospinal fluid (between precentral and postcentral gyri LH and skull)
+247	246	Superior longitudinal fasciculus I posterior RH
+248	247	Superior frontal sulcus RH
+249	248	Forceps major RH
+250	249	Superior longitudinal fasciculus II LH
+251	250	Supramarginal gyrus anterior LH
+252	251	Callosomarginal sulcus inferior
+253	252	Superior temporal sulcus posterior RH
+254	253	Superior longitudinal fasciculus I LH
+255	254	Parietal operculum RH
+256	255	Precuneus superior

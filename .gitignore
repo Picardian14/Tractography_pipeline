@@ -1,3 +1,7 @@
 *.sif
 build-logs/
 outputs/
+doc_data/
+freesurfer/
+raw_dicom/
+examples/
