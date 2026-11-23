@@ -1,0 +1,40 @@
+map_number	4D_map_index_0based	name
+1	0	L Aud
+2	1	R Aud
+3	2	Striate
+4	3	L DMN
+5	4	Med DMN
+6	5	Front DMN
+7	6	R DMN
+8	7	Occ post
+9	8	Motor
+10	9	R DLPFC
+11	10	R Front pol
+12	11	R Par
+13	12	R Post Temp
+14	13	Basal
+15	14	L Par
+16	15	L DLPFC
+17	16	L Front pol
+18	17	L IPS
+19	18	R IPS
+20	19	L LOC
+21	20	Vis
+22	21	R LOC
+23	22	D ACC
+24	23	V ACC
+25	24	R A Ins
+26	25	L STS
+27	26	R STS
+28	27	L TPJ
+29	28	Broca
+30	29	Sup Front S
+31	30	R TPJ
+32	31	R Pars Op
+33	32	Cereb
+34	33	Dors PCC
+35	34	L Ins
+36	35	Cing
+37	36	R Ins
+38	37	L Ant IPS
+39	38	R Ant IPS

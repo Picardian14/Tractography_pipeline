@@ -1,0 +1,22 @@
+node_id	volume_label	name
+1	1	Left Cerebral White Matter
+2	2	Left Cerebral Cortex
+3	3	Left Lateral Ventrical
+4	4	Left Thalamus
+5	5	Left Caudate
+6	6	Left Putamen
+7	7	Left Pallidum
+8	8	Brain-Stem
+9	9	Left Hippocampus
+10	10	Left Amygdala
+11	11	Left Accumbens
+12	12	Right Cerebral White Matter
+13	13	Right Cerebral Cortex
+14	14	Right Lateral Ventricle
+15	15	Right Thalamus
+16	16	Right Caudate
+17	17	Right Putamen
+18	18	Right Pallidum
+19	19	Right Hippocampus
+20	20	Right Amygdala
+21	21	Right Accumbens

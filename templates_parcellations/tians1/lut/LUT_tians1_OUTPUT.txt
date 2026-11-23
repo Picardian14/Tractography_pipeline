@@ -1,0 +1,16 @@
+1 HIP-rh
+2 AMY-rh
+3 pTHA-rh
+4 aTHA-rh
+5 NAc-rh
+6 GP-rh
+7 PUT-rh
+8 CAU-rh
+9 HIP-lh
+10 AMY-lh
+11 pTHA-lh
+12 aTHA-lh
+13 NAc-lh
+14 GP-lh
+15 PUT-lh
+16 CAU-lh
